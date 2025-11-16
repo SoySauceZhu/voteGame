@@ -3,7 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
-
+const fetch = require('node-fetch');
+const geoCache = new Map();
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -138,6 +139,7 @@ function getClientIp(req) {
 
 // Geolocate IP via ipapi.co
 async function getLocationFromIp(ip) {
+  if (geoCache.has(ip)) return geoCache.get(ip);
   if (
     !ip ||
     ip === '::1' ||
@@ -149,25 +151,30 @@ async function getLocationFromIp(ip) {
   }
 
   try {
-    const res = await fetch(`https://ipapi.co/${ip}/json/`);
+    const res = await fetch(`https://ipwho.is/${ip}`);
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
     const data = await res.json();
 
+    if (data.success === false) {
+      console.error('ipwho.is failed for', ip, data.message);
+      return 'Unknown location';
+    }
+
     const city = data.city || '';
     const region = data.region || '';
-    const country = data.country_name || '';
+    const country = data.country || '';
 
     const parts = [city, region, country].filter(Boolean);
     if (parts.length === 0) return 'Unknown location';
+    geoCache.set(ip, parts.join(', '));
     return parts.join(', ');
   } catch (err) {
     console.error('Error geolocating IP:', ip, err.message);
     return 'Unknown location';
   }
 }
-
 // Verify Google reCAPTCHA v2 token
 async function verifyRecaptcha(token, remoteIp) {
   const secret = process.env.RECAPTCHA_SECRET;
