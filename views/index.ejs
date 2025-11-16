@@ -25,14 +25,14 @@
       padding: 1.5rem;
       box-shadow: 0 0 10px rgba(0,0,0,0.04);
       margin-bottom: 1.5rem;
+      background: #fff;
     }
     label {
       display: block;
       margin-bottom: 0.5rem;
       font-weight: 600;
     }
-    input[type="number"],
-    input[type="text"] {
+    input[type="number"] {
       width: 100%;
       padding: 0.5rem;
       font-size: 1rem;
@@ -64,23 +64,33 @@
       color: #b91c1c;
       margin-top: 0.5rem;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    /* NEW: activity board styles */
+    .activity-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .activity-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.95rem;
+    }
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+    .activity-location {
+      font-weight: 500;
+    }
+    .activity-value {
+      opacity: 0.8;
       font-size: 0.9rem;
     }
-    th, td {
-      padding: 0.5rem;
-      border-bottom: 1px solid #e5e7eb;
-      text-align: left;
-    }
-    th {
-      font-weight: 600;
-      background: #f9fafb;
-    }
-    .muted {
-      color: #6b7280;
-      font-size: 0.8rem;
+    .activity-empty {
+      font-size: 0.9rem;
+      opacity: 0.7;
     }
   </style>
 </head>
@@ -98,15 +108,6 @@
       <label for="value">Your number (0–1000):</label>
       <input id="value" name="value" type="number" min="0" max="1000" required>
 
-      <label for="location">Your location / area (optional):</label>
-      <input
-        id="location"
-        name="location"
-        type="text"
-        placeholder="e.g. Liverpool, UK or Shanghai, China"
-        value="<%= result && result.userLocation ? result.userLocation : '' %>"
-      >
-
       <button type="submit" class="submit-btn">Submit</button>
       <button type="button" class="share-btn" id="shareBtn">Copy link / Share</button>
     </form>
@@ -118,9 +119,6 @@
     <% if (result && !result.error && result.average !== null) { %>
       <div class="result">
         <p>You submitted: <strong><%= result.userValue %></strong></p>
-        <% if (result.userLocation) { %>
-          <p>Your location: <strong><%= result.userLocation %></strong></p>
-        <% } %>
         <p>
           Current average of all votes is:
           <strong><%= result.average.toFixed(2) %></strong>
@@ -144,31 +142,27 @@
     <% } %>
   </div>
 
-  <% if (recentVotes && recentVotes.length > 0) { %>
-    <div class="card">
-      <h2>Recent Activity (latest 10 submissions)</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Location / Area</th>
-            <th>Value</th>
-            <th class="muted">Time (UTC)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% recentVotes.forEach(function(vote) { %>
-            <tr>
-              <td><%= vote.location || 'Unknown' %></td>
-              <td><strong><%= vote.value %></strong></td>
-              <td class="muted">
-                <%= new Date(vote.created_at).toISOString().replace('T',' ').slice(0,16) %>
-              </td>
-            </tr>
-          <% }); %>
-        </tbody>
-      </table>
-    </div>
-  <% } %>
+  <!-- NEW: Activity board -->
+  <div class="card">
+    <h2>Latest activity</h2>
+
+    <% if (recentVotes && recentVotes.length > 0) { %>
+      <ul class="activity-list">
+        <% recentVotes.forEach(function(v) { %>
+          <li class="activity-item">
+            <span class="activity-location">
+              <%= v.location || 'Unknown location' %>
+            </span>
+            <span class="activity-value">
+              voted <strong><%= v.value %></strong>
+            </span>
+          </li>
+        <% }) %>
+      </ul>
+    <% } else { %>
+      <p class="activity-empty">No votes yet. Be the first to play!</p>
+    <% } %>
+  </div>
 
   <script>
     const shareBtn = document.getElementById('shareBtn');

@@ -16,7 +16,54 @@ app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Helper: compute game stats
+// --- NEW: helper to get client IP (behind proxy like Render) ---
+function getClientIp(req) {
+  const xfwd = req.headers['x-forwarded-for'];
+  if (xfwd) {
+    // "client, proxy1, proxy2"
+    return xfwd.split(',')[0].trim();
+  }
+  // Fallback
+  return req.ip || req.connection.remoteAddress;
+}
+
+// --- NEW: lookup location from IP using a free API ---
+async function lookupLocation(ip) {
+  try {
+    if (!ip) return 'Unknown location';
+
+    // local dev
+    if (ip === '127.0.0.1' || ip === '::1') {
+      return 'Localhost';
+    }
+
+    // ip-api.com: free, no key, HTTP only (fine for server-side)
+    const res = await fetch(
+      `http://ip-api.com/json/${ip}?fields=status,country,regionName,city`
+    );
+    const data = await res.json();
+    if (data.status === 'success') {
+      return [data.city, data.regionName, data.country].filter(Boolean).join(', ');
+    }
+    return 'Unknown location';
+  } catch (err) {
+    console.error('IP lookup failed:', err);
+    return 'Unknown location';
+  }
+}
+
+// --- NEW: get latest 10 votes for activity board ---
+async function getRecentVotes() {
+  const { rows } = await pool.query(
+    `SELECT value, location, created_at
+     FROM votes
+     ORDER BY created_at DESC
+     LIMIT 10`
+  );
+  return rows;
+}
+
+// Existing: compute stats
 async function computeGameStats(newVoteId) {
   const { rows } = await pool.query('SELECT id, value FROM votes');
   if (rows.length === 0) {
@@ -52,30 +99,13 @@ async function computeGameStats(newVoteId) {
   };
 }
 
-// Helper: get latest 10 votes for activity board
-async function getRecentVotes(limit = 10) {
-  const { rows } = await pool.query(
-    'SELECT value, location, created_at FROM votes ORDER BY created_at DESC LIMIT $1',
-    [limit]
-  );
-  return rows;
-}
-
-// GET / – show page (no result yet, but show recent activity)
+// GET / – show page (with recent activity, no result yet)
 app.get('/', async (req, res) => {
-  try {
-    const recentVotes = await getRecentVotes();
-    res.render('index', {
-      result: null,
-      recentVotes,
-    });
-  } catch (err) {
-    console.error(err);
-    res.render('index', {
-      result: { error: 'Failed to load recent activity.' },
-      recentVotes: [],
-    });
-  }
+  const recentVotes = await getRecentVotes(); // NEW
+  res.render('index', {
+    result: null,
+    recentVotes,
+  });
 });
 
 // POST /vote – handle submission
@@ -83,10 +113,9 @@ app.post('/vote', async (req, res) => {
   try {
     const raw = req.body.value;
     const num = parseInt(raw, 10);
-    const location = (req.body.location || '').trim(); // NEW
 
     if (Number.isNaN(num) || num < 0 || num > 1000) {
-      const recentVotes = await getRecentVotes();
+      const recentVotes = await getRecentVotes(); // NEW
       return res.render('index', {
         result: {
           error: 'Please submit an integer between 0 and 1000.',
@@ -95,18 +124,22 @@ app.post('/vote', async (req, res) => {
       });
     }
 
-    // Insert vote with location
+    // NEW: IP + location
+    const ip = getClientIp(req);
+    const location = await lookupLocation(ip);
+
+    // Insert vote with IP + location
     const insertRes = await pool.query(
-      'INSERT INTO votes(value, location) VALUES($1, $2) RETURNING id',
-      [num, location || null]
+      'INSERT INTO votes(value, ip_address, location) VALUES($1, $2, $3) RETURNING id',
+      [num, ip, location]
     );
     const newVoteId = insertRes.rows[0].id;
 
-    // Compute stats for the new vote
+    // Compute game stats
     const stats = await computeGameStats(newVoteId);
 
-    // Get recent votes for activity board
-    const recentVotes = await getRecentVotes();
+    // Get recent activity
+    const recentVotes = await getRecentVotes(); // NEW
 
     res.render('index', {
       result: {
@@ -116,13 +149,12 @@ app.post('/vote', async (req, res) => {
         isWinner: stats.isWinner,
         totalVotes: stats.totalVotes,
         error: null,
-        userLocation: location,
       },
       recentVotes,
     });
   } catch (err) {
     console.error(err);
-    const recentVotes = await getRecentVotes().catch(() => []);
+    const recentVotes = await getRecentVotes(); // NEW
     res.render('index', {
       result: {
         error: 'Something went wrong. Please try again later.',
