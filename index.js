@@ -11,59 +11,11 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Middlewares
 app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// --- NEW: helper to get client IP (behind proxy like Render) ---
-function getClientIp(req) {
-  const xfwd = req.headers['x-forwarded-for'];
-  if (xfwd) {
-    // "client, proxy1, proxy2"
-    return xfwd.split(',')[0].trim();
-  }
-  // Fallback
-  return req.ip || req.connection.remoteAddress;
-}
-
-// --- NEW: lookup location from IP using a free API ---
-async function lookupLocation(ip) {
-  try {
-    if (!ip) return 'Unknown location';
-
-    // local dev
-    if (ip === '127.0.0.1' || ip === '::1') {
-      return 'Localhost';
-    }
-
-    // ip-api.com: free, no key, HTTP only (fine for server-side)
-    const res = await fetch(
-      `http://ip-api.com/json/${ip}?fields=status,country,regionName,city`
-    );
-    const data = await res.json();
-    if (data.status === 'success') {
-      return [data.city, data.regionName, data.country].filter(Boolean).join(', ');
-    }
-    return 'Unknown location';
-  } catch (err) {
-    console.error('IP lookup failed:', err);
-    return 'Unknown location';
-  }
-}
-
-// --- NEW: get latest 10 votes for activity board ---
-async function getRecentVotes() {
-  const { rows } = await pool.query(
-    `SELECT value, location, created_at
-     FROM votes
-     ORDER BY created_at DESC
-     LIMIT 10`
-  );
-  return rows;
-}
-
-// Existing: compute stats
+// Helper: compute game stats
 async function computeGameStats(newVoteId) {
   const { rows } = await pool.query('SELECT id, value FROM votes');
   if (rows.length === 0) {
@@ -99,36 +51,71 @@ async function computeGameStats(newVoteId) {
   };
 }
 
-// GET / – show page (with recent activity, no result yet)
+// Helper: extract IP address from request (handles reverse proxy / Render)
+function getClientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd.length > 0) {
+    return fwd.split(',')[0].trim();
+  }
+  const ip = req.socket?.remoteAddress || '';
+  // Remove IPv6 prefix like ::ffff:
+  return ip.replace(/^::ffff:/, '');
+}
+
+// Helper: get location string from IP using ipapi.co
+async function getLocationFromIp(ip) {
+  // Local dev / private IPs won't be geolocatable
+  if (!ip || ip === '::1' || ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.')) {
+    return 'Local network';
+  }
+
+  try {
+    const res = await fetch(`https://ipapi.co/${ip}/json/`);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const data = await res.json();
+
+    const city = data.city || '';
+    const region = data.region || '';
+    const country = data.country_name || '';
+
+    const parts = [city, region, country].filter(Boolean);
+    if (parts.length === 0) return 'Unknown location';
+    return parts.join(', ');
+  } catch (err) {
+    console.error('Error geolocating IP:', ip, err.message);
+    return 'Unknown location';
+  }
+}
+
+// GET / – first load, no result, no activity board
 app.get('/', async (req, res) => {
-  const recentVotes = await getRecentVotes(); // NEW
   res.render('index', {
     result: null,
-    recentVotes,
+    recentVotes: null, // no board yet
   });
 });
 
-// POST /vote – handle submission
+// POST /vote – handle submission, show result + latest 10 votes
 app.post('/vote', async (req, res) => {
   try {
     const raw = req.body.value;
     const num = parseInt(raw, 10);
 
     if (Number.isNaN(num) || num < 0 || num > 1000) {
-      const recentVotes = await getRecentVotes(); // NEW
       return res.render('index', {
         result: {
           error: 'Please submit an integer between 0 and 1000.',
         },
-        recentVotes,
+        recentVotes: null,
       });
     }
 
-    // NEW: IP + location
     const ip = getClientIp(req);
-    const location = await lookupLocation(ip);
+    const location = await getLocationFromIp(ip);
 
-    // Insert vote with IP + location
+    // Insert vote with IP and location
     const insertRes = await pool.query(
       'INSERT INTO votes(value, ip_address, location) VALUES($1, $2, $3) RETURNING id',
       [num, ip, location]
@@ -138,8 +125,11 @@ app.post('/vote', async (req, res) => {
     // Compute game stats
     const stats = await computeGameStats(newVoteId);
 
-    // Get recent activity
-    const recentVotes = await getRecentVotes(); // NEW
+    // Fetch latest 10 votes for activity board
+    const recentRes = await pool.query(
+      'SELECT value, location, created_at FROM votes ORDER BY created_at DESC LIMIT 10'
+    );
+    const recentVotes = recentRes.rows;
 
     res.render('index', {
       result: {
@@ -154,12 +144,11 @@ app.post('/vote', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    const recentVotes = await getRecentVotes(); // NEW
     res.render('index', {
       result: {
         error: 'Something went wrong. Please try again later.',
       },
-      recentVotes,
+      recentVotes: null,
     });
   }
 });

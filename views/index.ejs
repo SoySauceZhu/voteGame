@@ -15,17 +15,12 @@
       font-size: 1.5rem;
       margin-bottom: 1rem;
     }
-    h2 {
-      font-size: 1.2rem;
-      margin-bottom: 0.75rem;
-    }
     .card {
       border: 1px solid #ddd;
       border-radius: 12px;
       padding: 1.5rem;
       box-shadow: 0 0 10px rgba(0,0,0,0.04);
       margin-bottom: 1.5rem;
-      background: #fff;
     }
     label {
       display: block;
@@ -64,33 +59,30 @@
       color: #b91c1c;
       margin-top: 0.5rem;
     }
-    /* NEW: activity board styles */
-    .activity-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
+    .activity-board {
+      margin-top: 1.5rem;
     }
-    .activity-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 0.35rem 0;
-      border-bottom: 1px solid #f3f4f6;
-      font-size: 0.95rem;
+    .activity-board h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
     }
-    .activity-item:last-child {
-      border-bottom: none;
-    }
-    .activity-location {
-      font-weight: 500;
-    }
-    .activity-value {
-      opacity: 0.8;
+    table {
+      width: 100%;
+      border-collapse: collapse;
       font-size: 0.9rem;
     }
-    .activity-empty {
-      font-size: 0.9rem;
-      opacity: 0.7;
+    th, td {
+      padding: 0.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+    }
+    .muted {
+      color: #6b7280;
+      font-size: 0.8rem;
     }
   </style>
 </head>
@@ -140,27 +132,30 @@
         </p>
       </div>
     <% } %>
-  </div>
-
-  <!-- NEW: Activity board -->
-  <div class="card">
-    <h2>Latest activity</h2>
 
     <% if (recentVotes && recentVotes.length > 0) { %>
-      <ul class="activity-list">
-        <% recentVotes.forEach(function(v) { %>
-          <li class="activity-item">
-            <span class="activity-location">
-              <%= v.location || 'Unknown location' %>
-            </span>
-            <span class="activity-value">
-              voted <strong><%= v.value %></strong>
-            </span>
-          </li>
-        <% }) %>
-      </ul>
-    <% } else { %>
-      <p class="activity-empty">No votes yet. Be the first to play!</p>
+      <div class="activity-board">
+        <h2>Latest activity</h2>
+        <p class="muted">Last 10 submissions (location & chosen value)</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Location</th>
+              <th>Value</th>
+              <th>Time (UTC)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recentVotes.forEach(function(vote) { %>
+              <tr>
+                <td><%= vote.location || 'Unknown' %></td>
+                <td><strong><%= vote.value %></strong></td>
+                <td class="muted"><%= vote.created_at.toISOString ? vote.created_at.toISOString() : vote.created_at %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
     <% } %>
   </div>
 
