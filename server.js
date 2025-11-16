@@ -10,7 +10,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 const PLAYER_MAX_VOTES = 3;
-const PLAYER_WINDOW_MINUTES = 10;
+const PLAYER_WINDOW_MINUTES = 5;
 
 const IP_MAX_VOTES = 200;
 const IP_WINDOW_MINUTES = 10;
