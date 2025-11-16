@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin – Half-of-Average Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 1rem;
+    }
+    h2 {
+      font-size: 1.2rem;
+      margin-top: 1.5rem;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.04);
+    }
+    label {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-weight: 600;
+    }
+    input, select {
+      padding: 0.4rem;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    .field-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    button {
+      padding: 0.4rem 0.9rem;
+      font-size: 0.9rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-danger {
+      background: #b91c1c;
+      color: white;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    th, td {
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+    }
+    .tag {
+      display: inline-block;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+    }
+    .tag-active {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .tag-inactive {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .muted {
+      color: #6b7280;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Admin – Half-of-Average Game</h1>
+  <p class="muted">
+    Use this page to control which votes count in the game and remove bad data.
+  </p>
+
+  <!-- Time-range activation card -->
+  <div class="card">
+    <h2>1. Enable / disable votes by time range</h2>
+    <p class="muted">
+      Choose a time window and whether votes in that period should be active (included in average) or inactive (ignored).
+    </p>
+
+    <form method="POST" action="/admin/range?key=<%= encodeURIComponent(adminKey) %>">
+      <div class="field-group">
+        <div>
+          <label for="start">Start time (UTC)</label>
+          <input type="datetime-local" id="start" name="start" required>
+        </div>
+        <div>
+          <label for="end">End time (UTC)</label>
+          <input type="datetime-local" id="end" name="end" required>
+        </div>
+        <div>
+          <label for="action">Action</label>
+          <select id="action" name="action" required>
+            <option value="enable">Enable votes in this range</option>
+            <option value="disable">Disable votes in this range</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary">Apply</button>
+    </form>
+  </div>
+
+  <!-- Records table card -->
+  <div class="card">
+    <h2>2. Latest 50 votes (manage records)</h2>
+    <p class="muted">
+      You can quickly see recent votes, check their status, and delete individual records if needed.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Value</th>
+          <th>Location</th>
+          <th>Created at (UTC)</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (votes && votes.length > 0) { %>
+          <% votes.forEach(function(v) { %>
+            <tr>
+              <td><%= v.id %></td>
+              <td><strong><%= v.value %></strong></td>
+              <td><%= v.location || 'Unknown' %></td>
+              <td class="muted">
+                <%= v.created_at.toISOString ? v.created_at.toISOString() : v.created_at %>
+              </td>
+              <td>
+                <% if (v.is_active) { %>
+                  <span class="tag tag-active">active</span>
+                <% } else { %>
+                  <span class="tag tag-inactive">inactive</span>
+                <% } %>
+              </td>
+              <td>
+                <form method="POST" action="/admin/delete/<%= v.id %>?key=<%= encodeURIComponent(adminKey) %>" style="display:inline;">
+                  <button type="submit" class="btn-danger" onclick="return confirm('Delete this vote?');">
+                    Delete
+                  </button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        <% } else { %>
+          <tr>
+            <td colspan="6" class="muted">No votes in database yet.</td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

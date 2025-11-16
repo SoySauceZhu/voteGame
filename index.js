@@ -11,6 +11,37 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+
+const ADMIN_USER = process.env.ADMIN_USER;
+const ADMIN_PASSWORD = process.env.ADMIN_KEY;
+
+function requireAdmin(req, res, next) {
+  if (!ADMIN_USER || !ADMIN_PASSWORD) {
+    return res
+      .status(500)
+      .send('ADMIN_USER or ADMIN_PASSWORD is not configured on the server.');
+  }
+
+  const authHeader = req.headers['authorization'];
+
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
+    return res.status(401).send('Authentication required.');
+  }
+
+  const base64Credentials = authHeader.split(' ')[1];
+  const decoded = Buffer.from(base64Credentials, 'base64').toString('utf8');
+  const [user, pass] = decoded.split(':');
+
+  if (user === ADMIN_USER && pass === ADMIN_PASSWORD) {
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
+  return res.status(401).send('Invalid credentials.');
+}
+
+
 // If running behind Render/Heroku proxy, trust it so req.ip / x-forwarded-for works nicely
 app.set('trust proxy', true);
 
@@ -22,7 +53,9 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Compute game stats & whether newVoteId is currently a winner
 async function computeGameStats(newVoteId) {
-  const { rows } = await pool.query('SELECT id, value FROM votes');
+  const { rows } = await pool.query(
+    'SELECT id, value FROM votes WHERE is_active = true'
+  );
   if (rows.length === 0) {
     return {
       average: null,
@@ -55,6 +88,7 @@ async function computeGameStats(newVoteId) {
     totalVotes,
   };
 }
+
 
 // Extract client IP (handles x-forwarded-for & IPv6 prefix)
 function getClientIp(req) {
@@ -152,17 +186,17 @@ app.post('/vote', async (req, res) => {
     const captchaToken = req.body['g-recaptcha-response'];
     const ip = getClientIp(req);
 
-    // 1) Verify CAPTCHA
-    const captchaOk = await verifyRecaptcha(captchaToken, ip);
-    if (!captchaOk) {
-      return res.render('index', {
-        result: {
-          error: 'CAPTCHA verification failed. Please confirm you are not a robot and try again.',
-        },
-        recentVotes: null,
-        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
-      });
-    }
+    // // 1) Verify CAPTCHA
+    // const captchaOk = await verifyRecaptcha(captchaToken, ip);
+    // if (!captchaOk) {
+    //   return res.render('index', {
+    //     result: {
+    //       error: 'CAPTCHA verification failed. Please confirm you are not a robot and try again.',
+    //     },
+    //     recentVotes: null,
+    //     recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
+    //   });
+    // }
 
     // 2) Validate number
     if (Number.isNaN(num) || num < 0 || num > 1000) {
@@ -190,7 +224,7 @@ app.post('/vote', async (req, res) => {
 
     // 6) Latest 10 votes (activity board)
     const recentRes = await pool.query(
-      'SELECT value, location, created_at FROM votes ORDER BY created_at DESC LIMIT 10'
+      'SELECT value, location, created_at FROM votes WHERE is_active = true ORDER BY created_at DESC LIMIT 10'
     );
     const recentVotes = recentRes.rows;
 
@@ -220,4 +254,81 @@ app.post('/vote', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
+});
+
+
+
+
+
+// ---------- Admin routes ---------- //
+
+// GET /admin – admin dashboard
+app.get('/admin', requireAdmin, async (req, res) => {
+  try {
+    // Show latest 50 votes (including inactive) so admin can manage them
+    const result = await pool.query(
+      'SELECT id, value, location, created_at, is_active FROM votes ORDER BY created_at DESC LIMIT 50'
+    );
+    const votes = result.rows;
+
+    res.render('admin', {
+      votes,
+      adminKey: req.query.key, // to keep key in form actions
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error loading admin page.');
+  }
+});
+
+// POST /admin/range – enable/disable votes in a time range
+app.post('/admin/range', requireAdmin, async (req, res) => {
+  try {
+    const { start, end, action } = req.body;
+    const adminKey = req.query.key;
+
+    if (!start || !end || !action) {
+      return res.status(400).send('Missing start, end, or action.');
+    }
+
+    // Expecting ISO-like strings from datetime-local input
+    const startTime = new Date(start);
+    const endTime = new Date(end);
+
+    if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+      return res.status(400).send('Invalid date format.');
+    }
+
+    const enable = action === 'enable';
+
+    await pool.query(
+      'UPDATE votes SET is_active = $1 WHERE created_at BETWEEN $2 AND $3',
+      [enable, startTime.toISOString(), endTime.toISOString()]
+    );
+
+    // redirect back to admin page, preserving admin key
+    res.redirect(`/admin?key=${encodeURIComponent(adminKey)}`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error updating votes by time range.');
+  }
+});
+
+// POST /admin/delete/:id – hard delete a vote
+app.post('/admin/delete/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const adminKey = req.query.key;
+
+    if (Number.isNaN(id)) {
+      return res.status(400).send('Invalid vote ID.');
+    }
+
+    await pool.query('DELETE FROM votes WHERE id = $1', [id]);
+
+    res.redirect(`/admin?key=${encodeURIComponent(adminKey)}`);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error deleting vote.');
+  }
 });
