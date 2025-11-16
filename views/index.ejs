@@ -15,6 +15,10 @@
       font-size: 1.5rem;
       margin-bottom: 1rem;
     }
+    h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.75rem;
+    }
     .card {
       border: 1px solid #ddd;
       border-radius: 12px;
@@ -27,7 +31,8 @@
       margin-bottom: 0.5rem;
       font-weight: 600;
     }
-    input[type="number"] {
+    input[type="number"],
+    input[type="text"] {
       width: 100%;
       padding: 0.5rem;
       font-size: 1rem;
@@ -59,6 +64,24 @@
       color: #b91c1c;
       margin-top: 0.5rem;
     }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    th, td {
+      padding: 0.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+    th {
+      font-weight: 600;
+      background: #f9fafb;
+    }
+    .muted {
+      color: #6b7280;
+      font-size: 0.8rem;
+    }
   </style>
 </head>
 <body>
@@ -75,6 +98,15 @@
       <label for="value">Your number (0–1000):</label>
       <input id="value" name="value" type="number" min="0" max="1000" required>
 
+      <label for="location">Your location / area (optional):</label>
+      <input
+        id="location"
+        name="location"
+        type="text"
+        placeholder="e.g. Liverpool, UK or Shanghai, China"
+        value="<%= result && result.userLocation ? result.userLocation : '' %>"
+      >
+
       <button type="submit" class="submit-btn">Submit</button>
       <button type="button" class="share-btn" id="shareBtn">Copy link / Share</button>
     </form>
@@ -86,6 +118,9 @@
     <% if (result && !result.error && result.average !== null) { %>
       <div class="result">
         <p>You submitted: <strong><%= result.userValue %></strong></p>
+        <% if (result.userLocation) { %>
+          <p>Your location: <strong><%= result.userLocation %></strong></p>
+        <% } %>
         <p>
           Current average of all votes is:
           <strong><%= result.average.toFixed(2) %></strong>
@@ -109,12 +144,37 @@
     <% } %>
   </div>
 
+  <% if (recentVotes && recentVotes.length > 0) { %>
+    <div class="card">
+      <h2>Recent Activity (latest 10 submissions)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Location / Area</th>
+            <th>Value</th>
+            <th class="muted">Time (UTC)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% recentVotes.forEach(function(vote) { %>
+            <tr>
+              <td><%= vote.location || 'Unknown' %></td>
+              <td><strong><%= vote.value %></strong></td>
+              <td class="muted">
+                <%= new Date(vote.created_at).toISOString().replace('T',' ').slice(0,16) %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
   <script>
     const shareBtn = document.getElementById('shareBtn');
     shareBtn.addEventListener('click', async () => {
       const url = window.location.origin + window.location.pathname;
 
-      // If Web Share API is available (mobile, etc.)
       if (navigator.share) {
         try {
           await navigator.share({
@@ -126,7 +186,6 @@
           console.error('Share cancelled or failed', e);
         }
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        // Fallback: copy to clipboard
         try {
           await navigator.clipboard.writeText(url);
           alert('Link copied to clipboard!');
@@ -135,7 +194,6 @@
           prompt('Copy this link:', url);
         }
       } else {
-        // Old browsers: simple prompt
         prompt('Copy this link:', url);
       }
     });

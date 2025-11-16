@@ -7,19 +7,17 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Postgres connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
 // Middlewares
-app.use(express.urlencoded({ extended: true })); // handle form submissions
+app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Helper: compute game stats
 async function computeGameStats(newVoteId) {
-  // Get all votes
   const { rows } = await pool.query('SELECT id, value FROM votes');
   if (rows.length === 0) {
     return {
@@ -36,7 +34,6 @@ async function computeGameStats(newVoteId) {
   const average = sum / totalVotes;
   const target = average / 2;
 
-  // Find minimal distance
   let minDist = Infinity;
   const distances = rows.map((row) => {
     const dist = Math.abs(row.value - target);
@@ -55,11 +52,30 @@ async function computeGameStats(newVoteId) {
   };
 }
 
-// GET / – show page (no result yet)
+// Helper: get latest 10 votes for activity board
+async function getRecentVotes(limit = 10) {
+  const { rows } = await pool.query(
+    'SELECT value, location, created_at FROM votes ORDER BY created_at DESC LIMIT $1',
+    [limit]
+  );
+  return rows;
+}
+
+// GET / – show page (no result yet, but show recent activity)
 app.get('/', async (req, res) => {
-  res.render('index', {
-    result: null, // no result at first load
-  });
+  try {
+    const recentVotes = await getRecentVotes();
+    res.render('index', {
+      result: null,
+      recentVotes,
+    });
+  } catch (err) {
+    console.error(err);
+    res.render('index', {
+      result: { error: 'Failed to load recent activity.' },
+      recentVotes: [],
+    });
+  }
 });
 
 // POST /vote – handle submission
@@ -67,24 +83,30 @@ app.post('/vote', async (req, res) => {
   try {
     const raw = req.body.value;
     const num = parseInt(raw, 10);
+    const location = (req.body.location || '').trim(); // NEW
 
     if (Number.isNaN(num) || num < 0 || num > 1000) {
+      const recentVotes = await getRecentVotes();
       return res.render('index', {
         result: {
           error: 'Please submit an integer between 0 and 1000.',
         },
+        recentVotes,
       });
     }
 
-    // Insert vote
+    // Insert vote with location
     const insertRes = await pool.query(
-      'INSERT INTO votes(value) VALUES($1) RETURNING id',
-      [num]
+      'INSERT INTO votes(value, location) VALUES($1, $2) RETURNING id',
+      [num, location || null]
     );
     const newVoteId = insertRes.rows[0].id;
 
-    // Compute game stats
+    // Compute stats for the new vote
     const stats = await computeGameStats(newVoteId);
+
+    // Get recent votes for activity board
+    const recentVotes = await getRecentVotes();
 
     res.render('index', {
       result: {
@@ -94,14 +116,18 @@ app.post('/vote', async (req, res) => {
         isWinner: stats.isWinner,
         totalVotes: stats.totalVotes,
         error: null,
+        userLocation: location,
       },
+      recentVotes,
     });
   } catch (err) {
     console.error(err);
+    const recentVotes = await getRecentVotes().catch(() => []);
     res.render('index', {
       result: {
         error: 'Something went wrong. Please try again later.',
       },
+      recentVotes,
     });
   }
 });
