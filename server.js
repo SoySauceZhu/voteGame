@@ -242,7 +242,7 @@ app.post('/vote', async (req, res) => {
     // }
 
     // 2) Validate number
-    if (Number.isNaN(num) || num < 0 || num > 1000) {
+    if (Number.isNaN(num) || num < 0 || num > 100) {
       return res.render('index', {
         result: {
           error: 'Please submit an integer between 0 and 1000.',

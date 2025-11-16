@@ -7,16 +7,15 @@
 
   <style>
     :root {
-      --bg-gradient: radial-gradient(circle at top, #1d4ed8 0, #020617 50%, #000 100%);
-      --card-bg: rgba(15, 23, 42, 0.78);
-      --card-border: rgba(148, 163, 184, 0.4);
-      --accent: #38bdf8;
-      --accent-soft: rgba(56, 189, 248, 0.18);
-      --accent-strong: #22c55e;
-      --text-main: #e5e7eb;
-      --text-muted: #9ca3af;
-      --danger: #f97373;
-      --danger-soft: rgba(248, 113, 113, 0.18);
+      --bg: #f9fafb;
+      --card-bg: #ffffff;
+      --border: #e5e7eb;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --accent: #2563eb;
+      --accent-light: #3b82f6;
+      --success: #22c55e;
+      --danger: #ef4444;
     }
 
     * {
@@ -26,175 +25,85 @@
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-        "Segoe UI", sans-serif;
-      background: var(--bg-gradient);
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
       color: var(--text-main);
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      padding: 1.5rem 1rem;
+      padding: 2rem 1rem;
     }
 
     .shell {
       width: 100%;
-      max-width: 900px;
+      max-width: 960px;
       display: grid;
-      grid-template-columns: minmax(0, 3fr) minmax(0, 2.4fr);
-      gap: 1.5rem;
+      grid-template-columns: minmax(0, 2.5fr) minmax(0, 1.8fr);
+      gap: 2rem;
     }
 
     @media (max-width: 800px) {
       .shell {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: 1fr;
       }
     }
 
-    .card {
+    .card, .side-card {
       background: var(--card-bg);
-      border-radius: 1.25rem;
-      border: 1px solid var(--card-border);
-      backdrop-filter: blur(24px);
-      box-shadow:
-        0 18px 45px rgba(15, 23, 42, 0.85),
-        0 0 0 1px rgba(15, 23, 42, 0.8);
-      padding: 1.5rem 1.7rem;
-      position: relative;
-      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+      padding: 1.5rem;
     }
 
-    .card::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background: radial-gradient(circle at top left,
-        rgba(56, 189, 248, 0.14) 0,
-        transparent 55%);
-      opacity: 0.9;
+    h1 {
+      margin: 0 0 0.4rem;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
     }
 
-    .card-inner {
-      position: relative;
-      z-index: 1;
+    p {
+      margin: 0.4rem 0;
     }
 
-    .header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1rem;
+    .desc {
+      font-size: 0.95rem;
+      color: var(--text-muted);
       margin-bottom: 1.25rem;
     }
 
-    .title-block h1 {
-      margin: 0 0 0.4rem;
-      font-size: 1.6rem;
-      letter-spacing: 0.03em;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      font-size: 0.75rem;
-      padding: 0.2rem 0.65rem;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.55);
-      color: var(--text-muted);
-    }
-
-    .pill-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.35);
-    }
-
-    .subtitle {
-      margin: 0;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-    }
-
-    .rules {
-      margin: 0.75rem 0 1.25rem;
-      padding: 0.8rem 0.9rem;
-      border-radius: 0.9rem;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    .rules strong {
-      color: var(--accent);
-      font-weight: 1000;
-    }
-
     label {
-      display: block;
-      margin-bottom: 0.4rem;
+      font-weight: 600;
       font-size: 0.9rem;
-      font-weight: 500;
-    }
-
-    .input-row {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .input-wrap {
-      flex: 1;
-      position: relative;
-    }
-
-    .input-prefix {
-      position: absolute;
-      left: 0.9rem;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      pointer-events: none;
+      display: block;
+      margin-bottom: 0.3rem;
     }
 
     input[type="number"] {
       width: 100%;
-      background: rgba(15, 23, 42, 0.96);
-      border-radius: 0.85rem;
-      border: 1px solid rgba(148, 163, 184, 0.7);
-      padding: 0.55rem 0.75rem 0.55rem 2.1rem;
-      color: var(--text-main);
       font-size: 1rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
       outline: none;
-      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+      transition: border-color 0.2s ease;
     }
 
     input[type="number"]:focus {
       border-color: var(--accent);
-      background: rgba(15, 23, 42, 0.98);
-      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.8);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
 
-    .hint {
-      margin-top: 0.2rem;
-      font-size: 0.8rem;
-      color: var(--text-muted);
+    .g-recaptcha {
+      margin: 1rem 0;
     }
 
-    .button-row {
+    .btn-row {
       display: flex;
       flex-wrap: wrap;
       gap: 0.6rem;
-      margin-top: 1rem;
-      align-items: center;
+      margin-top: 0.6rem;
     }
 
     button {
@@ -202,223 +111,109 @@
       cursor: pointer;
       font-family: inherit;
       font-size: 0.9rem;
-      border-radius: 999px;
-      padding: 0.5rem 1.1rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+      border-radius: 8px;
+      padding: 0.55rem 1.1rem;
+      transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, #38bdf8, #6366f1);
+      background: var(--accent);
       color: white;
-      box-shadow:
-        0 10px 20px rgba(37, 99, 235, 0.45),
-        0 0 0 1px rgba(15, 23, 42, 0.9);
     }
 
     .btn-primary:hover {
+      background: var(--accent-light);
       transform: translateY(-1px);
-      box-shadow:
-        0 14px 30px rgba(37, 99, 235, 0.6),
-        0 0 0 1px rgba(15, 23, 42, 0.9);
+      box-shadow: 0 4px 10px rgba(37,99,235,0.2);
     }
 
     .btn-secondary {
-      background: rgba(15, 23, 42, 0.95);
-      color: var(--text-muted);
-      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: #f3f4f6;
+      color: var(--text-main);
     }
 
     .btn-secondary:hover {
-      background: rgba(15, 23, 42, 1);
-      transform: translateY(-1px);
-    }
-
-    .btn-icon {
-      font-size: 1rem;
-    }
-
-    .recaptcha-wrap {
-      margin-top: 0.8rem;
-      display: flex;
-      justify-content: flex-start;
-      transform: scale(0.92);
-      transform-origin: left top;
+      background: #e5e7eb;
     }
 
     .error {
-      margin-top: 0.9rem;
-      padding: 0.55rem 0.75rem;
-      border-radius: 0.8rem;
-      border: 1px solid rgba(248, 113, 113, 0.65);
-      background: var(--danger-soft);
       color: var(--danger);
-      font-size: 0.85rem;
-    }
-
-    .result {
-      margin-top: 1.15rem;
-      padding: 0.9rem 0.95rem;
-      border-radius: 0.9rem;
-      border: 1px solid rgba(148, 163, 184, 0.6);
-      background: radial-gradient(circle at top left,
-        var(--accent-soft) 0,
-        rgba(15, 23, 42, 0.98) 55%);
+      margin-top: 0.8rem;
+      background: #fee2e2;
+      padding: 0.5rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid #fecaca;
       font-size: 0.9rem;
     }
 
-    .result-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      margin-bottom: 0.6rem;
+    .result {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
     }
 
-    .badge-win {
-      padding: 0.15rem 0.65rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      background: rgba(34, 197, 94, 0.16);
-      border: 1px solid rgba(34, 197, 94, 0.7);
-      color: var(--accent-strong);
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
+    .result p {
+      margin: 0.4rem 0;
+      font-size: 0.95rem;
     }
 
-    .badge-lose {
-      padding: 0.15rem 0.65rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      background: rgba(15, 23, 42, 0.96);
-      border: 1px solid rgba(148, 163, 184, 0.7);
-      color: var(--text-muted);
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
+    .winner {
+      color: var(--success);
+      font-weight: 600;
     }
 
-    .result-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.4rem 1.1rem;
-      margin-top: 0.4rem;
-    }
-
-    .result-label {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-    }
-
-    .result-value {
-      font-size: 0.98rem;
+    .loser {
+      color: var(--danger);
       font-weight: 500;
     }
 
-    .stat-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      font-size: 0.78rem;
-      padding: 0.15rem 0.6rem;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid rgba(148, 163, 184, 0.6);
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    th {
       color: var(--text-muted);
-      margin-top: 0.2rem;
+      font-weight: 500;
     }
 
-    /* Right column – activity board */
-    .side-card {
-      background: rgba(15, 23, 42, 0.86);
-      border-radius: 1.25rem;
-      border: 1px solid rgba(148, 163, 184, 0.45);
-      padding: 1.35rem 1.4rem;
-      backdrop-filter: blur(18px);
-      box-shadow:
-        0 16px 40px rgba(15, 23, 42, 0.9),
-        0 0 0 1px rgba(15, 23, 42, 0.9);
-      position: relative;
-      overflow: hidden;
+    td {
+      color: var(--text-main);
     }
 
-    .side-card::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background: radial-gradient(circle at bottom right,
-        rgba(94, 234, 212, 0.22) 0,
-        transparent 50%);
-      opacity: 0.8;
-    }
-
-    .side-inner {
-      position: relative;
-      z-index: 1;
+    .muted {
+      color: var(--text-muted);
+      font-size: 0.85rem;
     }
 
     .side-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.8rem;
+      margin-bottom: 0.6rem;
     }
 
-    .side-title {
-      font-size: 1rem;
-      font-weight: 600;
+    .side-header h2 {
+      font-size: 1.1rem;
+      margin: 0;
+      color: var(--text-main);
     }
 
-    .side-subtitle {
-      font-size: 0.8rem;
+    .empty {
       color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-top: 1rem;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.8rem;
-      margin-top: 0.4rem;
-    }
-
-    th, td {
-      padding: 0.35rem 0.2rem;
-      border-bottom: 1px solid rgba(30, 41, 59, 0.9);
-      text-align: left;
-    }
-
-    th {
-      font-weight: 500;
-      color: var(--text-muted);
-      font-size: 0.78rem;
-    }
-
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    .loc-cell {
-      max-width: 120px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .time-cell {
-      color: var(--text-muted);
-      font-size: 0.74rem;
-      white-space: nowrap;
-    }
-
-    .empty-state {
-      margin-top: 0.8rem;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
   </style>
 
   <!-- Google reCAPTCHA v2 -->
@@ -426,26 +221,12 @@
 </head>
 <body>
   <div class="shell">
-    <!-- LEFT: Game panel -->
-    <div class="card">
-      <div class="card-inner">
-        <div class="header-row">
-          <div class="title-block">
-            <h1>
-              Half-of-Average
-              <span style="font-size:1.1rem;">🎯</span>
-            </h1>
-            <p class="subtitle">Pick a number. Get closest to half of the crowd’s average to win.</p>
-          </div>
-          <div class="pill">
-            <span class="pill-dot"></span>
-            live game
-          </div>
-        </div>
 
-        <p class="rules">
+    <div class="card">
+      <h1>Half-of-Average</h1>
+        <p class="desc">
           <strong>Rule:</strong> This is a classic game theory exercise.
-          Each player picks a number between 0 and 1000.
+          Each player picks a number between 0 and 100.
           The winner is the one whose choice is closest to <strong>half of the average</strong> of all submitted numbers.
           <br>
           <br>
@@ -456,146 +237,86 @@
           <br>
           <strong>Goal:</strong> Try to outthink the crowd and pick the optimal number.
         </p>
+      
+      <form method="POST" action="/vote">
+        <label for="value">Your number</label>
+        <input id="value" name="value" type="number" min="0" max="100" required>
 
-        <form method="POST" action="/vote">
-          <label for="value">Your number</label>
-          <div class="input-row">
-            <div class="input-wrap">
-              <!-- <span class="input-prefix">0–1000</span> -->
-              <input id="value" name="value" type="number" min="0" max="1000" required>
-              <!-- <div class="hint">Think strategically: what will everyone else play?</div> -->
-            </div>
-          </div>
+        <!-- <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>"></div> -->
 
-          <!-- <div class="recaptcha-wrap">
-            <div
-              class="g-recaptcha"
-              data-sitekey="<%= recaptchaSiteKey %>">
-            </div>
-          </div> -->
-
-          <div class="button-row">
-            <button type="submit" class="btn-primary">
-              <span class="btn-icon">✅</span>
-              Submit vote
-            </button>
-            <button type="button" class="btn-secondary" id="shareBtn">
-              <span class="btn-icon">🔗</span>
-              Copy link / Share
-            </button>
-          </div>
-        </form>
-
-        <% if (result && result.error) { %>
-          <div class="error"><%= result.error %></div>
-        <% } %>
-
-        <% if (result && !result.error && result.average !== null) { %>
-          <div class="result">
-            <div class="result-header">
-              <div>
-                <div class="result-label">You played</div>
-                <div class="result-value"><%= result.userValue %></div>
-                <div class="stat-pill">
-                  <span>👥</span>
-                  <span><%= result.totalVotes %> total votes</span>
-                </div>
-              </div>
-              <div>
-                <% if (result.isWinner) { %>
-                  <div class="badge-win">
-                    <span>🏆</span>
-                    <span>Currently a winner</span>
-                  </div>
-                <% } else { %>
-                  <div class="badge-lose">
-                    <span>🕹</span>
-                    <span>Not winning (yet)</span>
-                  </div>
-                <% } %>
-              </div>
-            </div>
-
-            <div class="result-grid">
-              <div>
-                <div class="result-label">Average of all votes</div>
-                <div class="result-value"><%= result.average.toFixed(2) %></div>
-              </div>
-              <div>
-                <div class="result-label">Half of the average</div>
-                <div class="result-value"><%= result.target.toFixed(2) %></div>
-              </div>
-            </div>
-          </div>
-        <% } %>
-      </div>
-    </div>
-
-    <!-- RIGHT: Activity board -->
-    <div class="side-card">
-      <div class="side-inner">
-        <div class="side-header">
-          <div>
-            <div class="side-title">Latest activity</div>
-            <div class="side-subtitle">Most recent submissions (location & value)</div>
-          </div>
+        <div class="btn-row">
+          <button type="submit" class="btn-primary">Submit</button>
+          <button type="button" class="btn-secondary" id="shareBtn">Copy Link / Share</button>
         </div>
+      </form>
 
-        <% if (recentVotes && recentVotes.length > 0) { %>
-          <table>
-            <thead>
-              <tr>
-                <th>Value</th>
-                <th>Location</th>
-                <th>Time (UTC)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% recentVotes.forEach(function(vote) { %>
-                <tr>
-                  <td><strong><%= vote.value %></strong></td>
-                  <td class="loc-cell"><%= vote.location || 'Unknown' %></td>
-                  <td class="time-cell">
-                    <%= vote.created_at.toISOString ? vote.created_at.toISOString().slice(11, 19) : vote.created_at %>
-                  </td>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
-        <% } else { %>
-          <p class="empty-state">
-            No public votes yet. Be the first to play and share the link with friends!
+      <% if (result && result.error) { %>
+        <div class="error"><%= result.error %></div>
+      <% } %>
+
+      <% if (result && !result.error && result.average !== null) { %>
+        <div class="result">
+          <p>You submitted: <strong><%= result.userValue %></strong></p>
+          <p>Current average: <strong><%= result.average.toFixed(2) %></strong></p>
+          <p>Half of average: <strong><%= result.target.toFixed(2) %></strong></p>
+          <p>Total votes: <%= result.totalVotes %></p>
+          <p>
+            Result:
+            <% if (result.isWinner) { %>
+              <span class="winner">🎉 You are currently one of the winners!</span>
+            <% } else { %>
+              <span class="loser">❌ Not the winner yet.</span>
+            <% } %>
           </p>
-        <% } %>
-      </div>
+        </div>
+      <% } %>
     </div>
+
+    <div class="side-card">
+      <div class="side-header">
+        <h2>Latest Activity</h2>
+        <span class="muted">Last 10 votes</span>
+      </div>
+
+      <% if (recentVotes && recentVotes.length > 0) { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Value</th>
+              <th>Location</th>
+              <th>Time (UTC)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% recentVotes.forEach(function(vote) { %>
+              <tr>
+                <td><strong><%= vote.value %></strong></td>
+                <td><%= vote.location || 'Unknown' %></td>
+                <td class="muted">
+                  <%= vote.created_at.toISOString ? vote.created_at.toISOString().slice(11,19) : vote.created_at %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } else { %>
+        <p class="empty">No votes yet — be the first to play!</p>
+      <% } %>
+    </div>
+
   </div>
 
   <script>
     const shareBtn = document.getElementById('shareBtn');
     shareBtn.addEventListener('click', async () => {
       const url = window.location.origin + window.location.pathname;
-
       if (navigator.share) {
-        try {
-          await navigator.share({
-            title: 'Half-of-Average Game',
-            text: 'Join this half-of-average number game!',
-            url
-          });
-        } catch (e) {
-          console.error('Share cancelled or failed', e);
-        }
+        await navigator.share({ title: 'Half-of-Average Game', text: 'Play this number game!', url });
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        try {
-          await navigator.clipboard.writeText(url);
-          alert('Link copied to clipboard!');
-        } catch (e) {
-          console.error(e);
-          prompt('Copy this link:', url);
-        }
+        await navigator.clipboard.writeText(url);
+        alert('Link copied!');
       } else {
-        prompt('Copy this link:', url);
+        prompt('Copy link:', url);
       }
     });
   </script>
