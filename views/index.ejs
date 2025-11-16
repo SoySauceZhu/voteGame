@@ -315,6 +315,7 @@
           <span class="zh">你的数字</span>
         </label>
         <input id="value" name="value" type="number" min="0" max="100" required>
+        <input type="hidden" id="playerIdInput" name="player_id" value="">
 
         <!-- <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>"></div> -->
 
@@ -439,63 +440,109 @@
 
   </div>
 
-  <script>
-    // 语言切换逻辑
-    const langButtons = document.querySelectorAll('[data-lang-btn]');
-    let currentLang = 'en';
+<script>
+  /***********************
+   * 🧠 1. Player ID 持久化机制
+   *    (localStorage + ?pid=... 兼容微信多 WebView)
+   ***********************/
+  (function () {
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    let pid = params.get('pid');
 
-    function setLanguage(lang) {
-      currentLang = lang;
-      document.body.classList.toggle('lang-en', lang === 'en');
-      document.body.classList.toggle('lang-zh', lang === 'zh');
-      document.documentElement.setAttribute('lang', lang === 'zh' ? 'zh-CN' : 'en');
-
-      langButtons.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.langBtn === lang);
-      });
-
-      try {
-        localStorage.setItem('lang', lang);
-      } catch (e) {
-        // ignore if unavailable
+    // 从 URL、localStorage 恢复或生成新的 player_id
+    if (!pid) {
+      pid = localStorage.getItem('player_id');
+    }
+    if (!pid) {
+      if (window.crypto && crypto.randomUUID) {
+        pid = crypto.randomUUID();
+      } else {
+        pid = 'pid_' + Math.random().toString(36).slice(2);
       }
     }
 
-    // 初始化：localStorage 优先，其次看浏览器语言
-    (function initLang() {
-      let saved = null;
-      try {
-        saved = localStorage.getItem('lang');
-      } catch (e) {}
-      if (saved === 'en' || saved === 'zh') {
-        setLanguage(saved);
-      } else {
-        const navLang = (navigator.language || '').toLowerCase();
-        if (navLang.startsWith('zh')) {
-          setLanguage('zh');
-        } else {
-          setLanguage('en');
-        }
-      }
-    })();
+    // 写入 localStorage
+    localStorage.setItem('player_id', pid);
+
+    // 如果 URL 里没带 pid，则补上
+    if (!params.get('pid')) {
+      params.set('pid', pid);
+      const newUrl = url.origin + url.pathname + '?' + params.toString();
+      window.history.replaceState({}, '', newUrl);
+    }
+
+    // 把 player_id 写进隐藏 input（提交给后端）
+    const pidInput = document.getElementById('playerIdInput');
+    if (pidInput) pidInput.value = pid;
+
+    // 暴露给其他逻辑（例如分享）
+    window.__PLAYER_ID__ = pid;
+  })();
+
+
+  /***********************
+   * 🌐 2. 语言切换逻辑
+   ***********************/
+  const langButtons = document.querySelectorAll('[data-lang-btn]');
+  let currentLang = 'en';
+
+  function setLanguage(lang) {
+    currentLang = lang;
+    document.body.classList.toggle('lang-en', lang === 'en');
+    document.body.classList.toggle('lang-zh', lang === 'zh');
+    document.documentElement.setAttribute('lang', lang === 'zh' ? 'zh-CN' : 'en');
 
     langButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const lang = btn.dataset.langBtn;
-        setLanguage(lang);
-      });
+      btn.classList.toggle('active', btn.dataset.langBtn === lang);
     });
 
-    // 分享按钮逻辑（保持原有功能，同时文本跟随语言）
-    const shareBtn = document.getElementById('shareBtn');
-    if (shareBtn) {
-      shareBtn.addEventListener('click', async () => {
-        const url = window.location.origin + window.location.pathname;
-        const title = currentLang === 'zh' ? '平均数的一半游戏' : 'Half-of-Average Game';
-        const text = currentLang === 'zh'
-          ? '来玩这个有趣的数字游戏，看你能否猜中大家的想法！'
-          : 'Play this number game and see if you can outthink the crowd!';
+    try {
+      localStorage.setItem('lang', lang);
+    } catch (e) {}
+  }
 
+  // 初始化语言：localStorage 优先 → 浏览器语言
+  (function initLang() {
+    let saved = null;
+    try {
+      saved = localStorage.getItem('lang');
+    } catch (e) {}
+    if (saved === 'en' || saved === 'zh') {
+      setLanguage(saved);
+    } else {
+      const navLang = (navigator.language || '').toLowerCase();
+      if (navLang.startsWith('zh')) {
+        setLanguage('zh');
+      } else {
+        setLanguage('en');
+      }
+    }
+  })();
+
+  langButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const lang = btn.dataset.langBtn;
+      setLanguage(lang);
+    });
+  });
+
+
+  /***********************
+   * 🔗 3. 分享按钮逻辑
+   *    （自动带上 pid，让分享的人在微信也能恢复同一个玩家身份）
+   ***********************/
+  const shareBtn = document.getElementById('shareBtn');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async () => {
+      // 当前 URL 已经包含 ?pid=xxx
+      const url = window.location.href;
+      const title = currentLang === 'zh' ? '平均数的一半游戏' : 'Half-of-Average Game';
+      const text = currentLang === 'zh'
+        ? '来玩这个有趣的数字游戏，看你能否猜中大家的想法！'
+        : 'Play this number game and see if you can outthink the crowd!';
+
+      try {
         if (navigator.share) {
           await navigator.share({ title, text, url });
         } else if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -504,8 +551,12 @@
         } else {
           prompt(currentLang === 'zh' ? '复制此链接：' : 'Copy this link:', url);
         }
-      });
-    }
-  </script>
+      } catch (err) {
+        console.error('Share failed:', err);
+      }
+    });
+  }
+</script>
+
 </body>
 </html>

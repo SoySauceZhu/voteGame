@@ -223,7 +223,7 @@ async function verifyRecaptcha(token, remoteIp) {
 }
 
 function getOrCreatePlayerId(req, res) {
-  let playerId = req.cookies.player_id;
+  let playerId = req.body.player_id || req.cookies.player_id;
   if (!playerId) {
     // Node 18+ has crypto.randomUUID()
     playerId = crypto.randomUUID();
