@@ -6,84 +6,418 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at top, #1d4ed8 0, #020617 50%, #000 100%);
+      --card-bg: rgba(15, 23, 42, 0.78);
+      --card-border: rgba(148, 163, 184, 0.4);
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.18);
+      --accent-strong: #22c55e;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --danger: #f97373;
+      --danger-soft: rgba(248, 113, 113, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      max-width: 600px;
-      margin: 2rem auto;
-      padding: 0 1rem;
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem 1rem;
     }
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
+
+    .shell {
+      width: 100%;
+      max-width: 900px;
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2.4fr);
+      gap: 1.5rem;
     }
+
+    @media (max-width: 800px) {
+      .shell {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
     .card {
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.04);
-      margin-bottom: 1.5rem;
+      background: var(--card-bg);
+      border-radius: 1.25rem;
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(24px);
+      box-shadow:
+        0 18px 45px rgba(15, 23, 42, 0.85),
+        0 0 0 1px rgba(15, 23, 42, 0.8);
+      padding: 1.5rem 1.7rem;
+      position: relative;
+      overflow: hidden;
     }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at top left,
+        rgba(56, 189, 248, 0.14) 0,
+        transparent 55%);
+      opacity: 0.9;
+    }
+
+    .card-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .title-block h1 {
+      margin: 0 0 0.4rem;
+      font-size: 1.6rem;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      color: var(--text-muted);
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.35);
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .rules {
+      margin: 0.75rem 0 1.25rem;
+      padding: 0.8rem 0.9rem;
+      border-radius: 0.9rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .rules strong {
+      color: var(--accent);
+      font-weight: 1000;
+    }
+
     label {
       display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
+      margin-bottom: 0.4rem;
+      font-size: 0.9rem;
+      font-weight: 500;
     }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .input-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .input-prefix {
+      position: absolute;
+      left: 0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
     input[type="number"] {
       width: 100%;
-      padding: 0.5rem;
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 0.85rem;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      padding: 0.55rem 0.75rem 0.55rem 2.1rem;
+      color: var(--text-main);
       font-size: 1rem;
-      box-sizing: border-box;
-      margin-bottom: 1rem;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     }
+
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      background: rgba(15, 23, 42, 0.98);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.8);
+    }
+
+    .hint {
+      margin-top: 0.2rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 1rem;
+      align-items: center;
+    }
+
     button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      border-radius: 6px;
       border: none;
       cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+      border-radius: 999px;
+      padding: 0.5rem 1.1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
     }
-    .submit-btn {
-      background: #2563eb;
+
+    .btn-primary {
+      background: linear-gradient(135deg, #38bdf8, #6366f1);
       color: white;
-      margin-right: 0.5rem;
+      box-shadow:
+        0 10px 20px rgba(37, 99, 235, 0.45),
+        0 0 0 1px rgba(15, 23, 42, 0.9);
     }
-    .share-btn {
-      background: #e5e7eb;
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow:
+        0 14px 30px rgba(37, 99, 235, 0.6),
+        0 0 0 1px rgba(15, 23, 42, 0.9);
     }
-    .result {
-      margin-top: 1rem;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      background: #f3f4f6;
+
+    .btn-secondary {
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.7);
     }
+
+    .btn-secondary:hover {
+      background: rgba(15, 23, 42, 1);
+      transform: translateY(-1px);
+    }
+
+    .btn-icon {
+      font-size: 1rem;
+    }
+
+    .recaptcha-wrap {
+      margin-top: 0.8rem;
+      display: flex;
+      justify-content: flex-start;
+      transform: scale(0.92);
+      transform-origin: left top;
+    }
+
     .error {
-      color: #b91c1c;
-      margin-top: 0.5rem;
+      margin-top: 0.9rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 0.8rem;
+      border: 1px solid rgba(248, 113, 113, 0.65);
+      background: var(--danger-soft);
+      color: var(--danger);
+      font-size: 0.85rem;
     }
-    .activity-board {
-      margin-top: 1.5rem;
+
+    .result {
+      margin-top: 1.15rem;
+      padding: 0.9rem 0.95rem;
+      border-radius: 0.9rem;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: radial-gradient(circle at top left,
+        var(--accent-soft) 0,
+        rgba(15, 23, 42, 0.98) 55%);
+      font-size: 0.9rem;
     }
-    .activity-board h2 {
-      font-size: 1.2rem;
-      margin-bottom: 0.5rem;
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.6rem;
     }
+
+    .badge-win {
+      padding: 0.15rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.7);
+      color: var(--accent-strong);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .badge-lose {
+      padding: 0.15rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.4rem 1.1rem;
+      margin-top: 0.4rem;
+    }
+
+    .result-label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .result-value {
+      font-size: 0.98rem;
+      font-weight: 500;
+    }
+
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.78rem;
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* Right column – activity board */
+    .side-card {
+      background: rgba(15, 23, 42, 0.86);
+      border-radius: 1.25rem;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      padding: 1.35rem 1.4rem;
+      backdrop-filter: blur(18px);
+      box-shadow:
+        0 16px 40px rgba(15, 23, 42, 0.9),
+        0 0 0 1px rgba(15, 23, 42, 0.9);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .side-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at bottom right,
+        rgba(94, 234, 212, 0.22) 0,
+        transparent 50%);
+      opacity: 0.8;
+    }
+
+    .side-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .side-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    .side-title {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .side-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.9rem;
+      font-size: 0.8rem;
+      margin-top: 0.4rem;
     }
+
     th, td {
-      padding: 0.5rem;
-      border-bottom: 1px solid #e5e7eb;
+      padding: 0.35rem 0.2rem;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.9);
       text-align: left;
     }
+
     th {
-      background: #f9fafb;
-      font-weight: 600;
+      font-weight: 500;
+      color: var(--text-muted);
+      font-size: 0.78rem;
     }
-    .muted {
-      color: #6b7280;
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .loc-cell {
+      max-width: 120px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .time-cell {
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      white-space: nowrap;
+    }
+
+    .empty-state {
+      margin-top: 0.8rem;
       font-size: 0.8rem;
+      color: var(--text-muted);
     }
   </style>
 
@@ -91,93 +425,156 @@
   <!-- <script src="https://www.google.com/recaptcha/api.js" async defer></script> -->
 </head>
 <body>
-  <h1>Half-of-Average Voting Game</h1>
-
-  <div class="card">
-    <p>
-      <strong>Description:</strong>
-      Please vote a number, whoever submitted the number closest to
-      <strong>half of the average</strong> wins.
-    </p>
-
-    <form method="POST" action="/vote">
-      <label for="value">Your number (0–1000):</label>
-      <input id="value" name="value" type="number" min="0" max="1000" required>
-
-      <!-- reCAPTCHA widget -->
-      <!-- <div style="margin-bottom: 1rem;">
-        <div
-          class="g-recaptcha"
-          data-sitekey="<%= recaptchaSiteKey %>">
+  <div class="shell">
+    <!-- LEFT: Game panel -->
+    <div class="card">
+      <div class="card-inner">
+        <div class="header-row">
+          <div class="title-block">
+            <h1>
+              Half-of-Average
+              <span style="font-size:1.1rem;">🎯</span>
+            </h1>
+            <p class="subtitle">Pick a number. Get closest to half of the crowd’s average to win.</p>
+          </div>
+          <div class="pill">
+            <span class="pill-dot"></span>
+            live game
+          </div>
         </div>
-      </div> -->
 
-      <button type="submit" class="submit-btn">Submit</button>
-      <button type="button" class="share-btn" id="shareBtn">Copy link / Share</button>
-    </form>
+        <p class="rules">
+          <strong>Rule:</strong> This is a classic game theory exercise.
+          Each player picks a number between 0 and 1000.
+          The winner is the one whose choice is closest to <strong>half of the average</strong> of all submitted numbers.
+          <br>
+          <br>
+          What would be the optimal choice?
+          <br>
+          Play this game and share to your friends. Big data will help find out!
+          <br>
+          <br>
+          <strong>Goal:</strong> Try to outthink the crowd and pick the optimal number.
+        </p>
 
-    <% if (result && result.error) { %>
-      <div class="error"><%= result.error %></div>
-    <% } %>
+        <form method="POST" action="/vote">
+          <label for="value">Your number</label>
+          <div class="input-row">
+            <div class="input-wrap">
+              <!-- <span class="input-prefix">0–1000</span> -->
+              <input id="value" name="value" type="number" min="0" max="1000" required>
+              <!-- <div class="hint">Think strategically: what will everyone else play?</div> -->
+            </div>
+          </div>
 
-    <% if (result && !result.error && result.average !== null) { %>
-      <div class="result">
-        <p>You submitted: <strong><%= result.userValue %></strong></p>
-        <p>
-          Current average of all votes is:
-          <strong><%= result.average.toFixed(2) %></strong>
-        </p>
-        <p>
-          Half of the average is:
-          <strong><%= result.target.toFixed(2) %></strong>
-        </p>
-        <p>
-          Total votes: <strong><%= result.totalVotes %></strong>
-        </p>
-        <p>
-          Result:
-          <% if (result.isWinner) { %>
-            🎉 You are currently one of the winners!
-          <% } else { %>
-            ❌ You are not currently the winner.
-          <% } %>
-        </p>
+          <!-- <div class="recaptcha-wrap">
+            <div
+              class="g-recaptcha"
+              data-sitekey="<%= recaptchaSiteKey %>">
+            </div>
+          </div> -->
+
+          <div class="button-row">
+            <button type="submit" class="btn-primary">
+              <span class="btn-icon">✅</span>
+              Submit vote
+            </button>
+            <button type="button" class="btn-secondary" id="shareBtn">
+              <span class="btn-icon">🔗</span>
+              Copy link / Share
+            </button>
+          </div>
+        </form>
+
+        <% if (result && result.error) { %>
+          <div class="error"><%= result.error %></div>
+        <% } %>
+
+        <% if (result && !result.error && result.average !== null) { %>
+          <div class="result">
+            <div class="result-header">
+              <div>
+                <div class="result-label">You played</div>
+                <div class="result-value"><%= result.userValue %></div>
+                <div class="stat-pill">
+                  <span>👥</span>
+                  <span><%= result.totalVotes %> total votes</span>
+                </div>
+              </div>
+              <div>
+                <% if (result.isWinner) { %>
+                  <div class="badge-win">
+                    <span>🏆</span>
+                    <span>Currently a winner</span>
+                  </div>
+                <% } else { %>
+                  <div class="badge-lose">
+                    <span>🕹</span>
+                    <span>Not winning (yet)</span>
+                  </div>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="result-grid">
+              <div>
+                <div class="result-label">Average of all votes</div>
+                <div class="result-value"><%= result.average.toFixed(2) %></div>
+              </div>
+              <div>
+                <div class="result-label">Half of the average</div>
+                <div class="result-value"><%= result.target.toFixed(2) %></div>
+              </div>
+            </div>
+          </div>
+        <% } %>
       </div>
-    <% } %>
+    </div>
 
-    <% if (recentVotes && recentVotes.length > 0) { %>
-      <div class="activity-board">
-        <h2>Latest activity</h2>
-        <p class="muted">Last 10 submissions (location & chosen value)</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Location</th>
-              <th>Value</th>
-              <th>Time (UTC)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% recentVotes.forEach(function(vote) { %>
+    <!-- RIGHT: Activity board -->
+    <div class="side-card">
+      <div class="side-inner">
+        <div class="side-header">
+          <div>
+            <div class="side-title">Latest activity</div>
+            <div class="side-subtitle">Most recent submissions (location & value)</div>
+          </div>
+        </div>
+
+        <% if (recentVotes && recentVotes.length > 0) { %>
+          <table>
+            <thead>
               <tr>
-                <td><%= vote.location || 'Unknown' %></td>
-                <td><strong><%= vote.value %></strong></td>
-                <td class="muted">
-                  <%= vote.created_at.toISOString ? vote.created_at.toISOString() : vote.created_at %>
-                </td>
+                <th>Value</th>
+                <th>Location</th>
+                <th>Time (UTC)</th>
               </tr>
-            <% }); %>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <% recentVotes.forEach(function(vote) { %>
+                <tr>
+                  <td><strong><%= vote.value %></strong></td>
+                  <td class="loc-cell"><%= vote.location || 'Unknown' %></td>
+                  <td class="time-cell">
+                    <%= vote.created_at.toISOString ? vote.created_at.toISOString().slice(11, 19) : vote.created_at %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } else { %>
+          <p class="empty-state">
+            No public votes yet. Be the first to play and share the link with friends!
+          </p>
+        <% } %>
       </div>
-    <% } %>
+    </div>
   </div>
 
   <script>
     const shareBtn = document.getElementById('shareBtn');
     shareBtn.addEventListener('click', async () => {
-      <!-- const url = window.location.origin + window.location.pathname; -->
-      const url = "https://game.soysauces.xyz/";
+      const url = window.location.origin + window.location.pathname;
 
       if (navigator.share) {
         try {
