@@ -4,11 +4,12 @@ const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
 const fetch = require('node-fetch');
+const cookieParser = require('cookie-parser');
 const geoCache = new Map();
 const app = express();
 const port = process.env.PORT || 3000;
 
-const PLAYER_MAX_VOTES = 5;
+const PLAYER_MAX_VOTES = 3;
 const PLAYER_WINDOW_MINUTES = 10;
 
 const IP_MAX_VOTES = 200;
