@@ -8,12 +8,25 @@ const geoCache = new Map();
 const app = express();
 const port = process.env.PORT || 3000;
 
+const PLAYER_MAX_VOTES = 5;
+const PLAYER_WINDOW_MINUTES = 10;
+
+const IP_MAX_VOTES = 200;
+const IP_WINDOW_MINUTES = 10;
+
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
 const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASSWORD = process.env.ADMIN_KEY;
+
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser()); // <--- add this
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
 
 function requireAdminBasic(req, res, next) {
   if (!ADMIN_USER || !ADMIN_PASSWORD) {
@@ -209,6 +222,23 @@ async function verifyRecaptcha(token, remoteIp) {
   }
 }
 
+function getOrCreatePlayerId(req, res) {
+  let playerId = req.cookies.player_id;
+  if (!playerId) {
+    // Node 18+ has crypto.randomUUID()
+    playerId = crypto.randomUUID();
+    // Set cookie (HTTP-only so JS can't read it)
+    res.cookie('player_id', playerId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: true, // for HTTPS on Vercel
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+    });
+  }
+  return playerId;
+}
+
+
 // ---------- Routes ---------- //
 
 // GET / – first load: no result, no activity board yet
@@ -220,83 +250,75 @@ app.get('/', async (req, res) => {
   });
 });
 
-// POST /vote – handle submission, verify CAPTCHA, then process vote
 app.post('/vote', async (req, res) => {
   try {
     const raw = req.body.value;
     const num = parseInt(raw, 10);
 
-    const captchaToken = req.body['g-recaptcha-response'];
-    const ip = getClientIp(req);
-
-    // // 1) Verify CAPTCHA
-    // const captchaOk = await verifyRecaptcha(captchaToken, ip);
-    // if (!captchaOk) {
-    //   return res.render('index', {
-    //     result: {
-    //       error: 'CAPTCHA verification failed. Please confirm you are not a robot and try again.',
-    //     },
-    //     recentVotes: null,
-    //     recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
-    //   });
-    // }
-
-    // 2) Validate number
-    if (Number.isNaN(num) || num < 0 || num > 100) {
+    if (Number.isNaN(num) || num < 0 || num > 1000) {
       return res.render('index', {
         result: {
           error: 'Please submit an integer between 0 and 1000.',
         },
         recentVotes: null,
-        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
       });
     }
 
-    // 3) Geolocate IP
+    const ip = getClientIp(req);
+    const playerId = getOrCreatePlayerId(req, res);
+
+    // ---- 1) Per-player rate limit (main protection) ----
+    const playerCheck = await pool.query(
+      `SELECT COUNT(*) AS cnt
+       FROM votes
+       WHERE player_id = $1
+         AND created_at >= NOW() - INTERVAL '${PLAYER_WINDOW_MINUTES} minutes'`,
+      [playerId]
+    );
+    const playerCnt = parseInt(playerCheck.rows[0].cnt, 10);
+
+    if (playerCnt >= PLAYER_MAX_VOTES) {
+      return res.render('index', {
+        result: {
+          error: `You have voted too many times recently. Please wait ${PLAYER_WINDOW_MINUTES} minutes.`,
+        },
+        recentVotes: null,
+      });
+    }
+
+    // ---- 2) Per-IP hard cap (just in case someone scripts many browsers behind one IP) ----
+    const ipCheck = await pool.query(
+      `SELECT COUNT(*) AS cnt
+       FROM votes
+       WHERE ip_address = $1
+         AND created_at >= NOW() - INTERVAL '${IP_WINDOW_MINUTES} minutes'`,
+      [ip]
+    );
+    const ipCnt = parseInt(ipCheck.rows[0].cnt, 10);
+
+    if (ipCnt >= IP_MAX_VOTES) {
+      return res.render('index', {
+        result: {
+          error: `Too many votes from your network. Please wait a bit and try again.`,
+        },
+        recentVotes: null,
+      });
+    }
+
+    // ---- 3) Get location + insert vote as before ----
     const location = await getLocationFromIp(ip);
 
-    // 4) Insert vote
     const insertRes = await pool.query(
-      'INSERT INTO votes(value, ip_address, location) VALUES($1, $2, $3) RETURNING id',
-      [num, ip, location]
+      'INSERT INTO votes(value, ip_address, location, player_id) VALUES($1, $2, $3, $4) RETURNING id',
+      [num, ip, location, playerId]
     );
     const newVoteId = insertRes.rows[0].id;
 
-    // 5) Compute stats
     const stats = await computeGameStats(newVoteId);
 
-    // 6) Latest 10 votes (activity board)
-    // 6) Latest 10 active votes (activity board) - use same include/exclude logic as getActiveVotes
-    const recentQuery = `
-      WITH includes AS (
-      SELECT start_time, end_time
-      FROM vote_constraints
-      WHERE enabled = true AND type = 'include'
-      ),
-      excludes AS (
-      SELECT start_time, end_time
-      FROM vote_constraints
-      WHERE enabled = true AND type = 'exclude'
-      )
-      SELECT v.value, v.location, v.created_at
-      FROM votes v
-      WHERE
-      (
-        NOT EXISTS (SELECT 1 FROM includes)
-        OR EXISTS (
-        SELECT 1 FROM includes i
-        WHERE v.created_at BETWEEN i.start_time AND i.end_time
-        )
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM excludes e
-        WHERE v.created_at BETWEEN e.start_time AND e.end_time
-      )
-      ORDER BY v.created_at DESC
-      LIMIT 10;
-    `;
-
-    const recentRes = await pool.query(recentQuery);
+    const recentRes = await pool.query(
+      'SELECT value, location, created_at FROM votes ORDER BY created_at DESC LIMIT 10'
+    );
     const recentVotes = recentRes.rows;
 
     res.render('index', {
@@ -309,7 +331,6 @@ app.post('/vote', async (req, res) => {
         error: null,
       },
       recentVotes,
-      recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
     });
   } catch (err) {
     console.error(err);
@@ -318,10 +339,10 @@ app.post('/vote', async (req, res) => {
         error: 'Something went wrong. Please try again later.',
       },
       recentVotes: null,
-      recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
     });
   }
 });
+
 
 // app.listen(port, () => {
   // console.log(`Server running on http://localhost:${port}`);
