@@ -56,8 +56,16 @@
       padding: 1.5rem;
     }
 
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
     h1 {
-      margin: 0 0 0.4rem;
+      margin: 0;
       font-size: 1.8rem;
       font-weight: 700;
       color: var(--accent);
@@ -214,58 +222,169 @@
       margin-top: 1rem;
     }
 
+    /* 语言切换 */
+
+    .lang-toggle {
+      display: inline-flex;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: #f9fafb;
+    }
+
+    .lang-toggle button {
+      font-size: 0.8rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 0;
+      border: none;
+      background: transparent;
+    }
+
+    .lang-toggle button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* en/zh 显示控制 */
+    .en { display: inline; }
+    .zh { display: none; }
+
+    body.lang-zh .en { display: none; }
+    body.lang-zh .zh { display: inline; }
+
+    body.lang-en .en { display: inline; }
+    body.lang-en .zh { display: none; }
+
   </style>
 
   <!-- Google reCAPTCHA v2 -->
   <!-- <script src="https://www.google.com/recaptcha/api.js" async defer></script> -->
 </head>
-<body>
+<body class="lang-en">
   <div class="shell">
 
     <div class="card">
-      <h1>Half-of-Average</h1>
-        <p class="desc">
+      <div class="header-row">
+        <div>
+          <h1>
+            <span class="en">Half-of-Average</span>
+            <span class="zh">平均数的一半游戏</span>
+          </h1>
+        </div>
+        <div class="lang-toggle">
+          <button type="button" data-lang-btn="en" class="active">EN</button>
+          <button type="button" data-lang-btn="zh">中文</button>
+        </div>
+      </div>
+
+      <p class="desc">
+        <span class="en">
+          Hi, ever heard about game theory?
+          <br><br>
+          Part of game theory studies includes strategic interactions where the outcome for each participant depends on the actions of all.
+          <br><br>
+          Here's a simple yet intriguing game for you to try!
+          <br><br>
           <strong>Rule:</strong> This is a classic game theory exercise.
           Each player picks a number between 0 and 100.
           The winner is the one whose choice is closest to <strong>half of the average</strong> of all submitted numbers.
-          <br>
-          <br>
+          <br><br>
           What would be the optimal choice?
           <br>
           Play this game and share to your friends. Big data will help find out!
-          <br>
-          <br>
+          <br><br>
           <strong>Goal:</strong> Try to outthink the crowd and pick the optimal number.
-        </p>
+        </span>
+        <span class="zh">
+          嗨，你听说过博弈论吗？
+          <br><br>
+          博弈论的一部分研究的是：当每个人的结果都取决于所有人的选择时，大家会如何做决策。
+          <br><br>
+          下面这个就是一个既简单又耐人寻味的小实验。
+          <br><br>
+          <strong>规则：</strong> 每位玩家选择一个 0–100 之间的数字。  
+          把所有人的数字取平均值，再算出这个平均值的一半，<strong>谁选的数字最接近这一半</strong>，谁就获胜。
+          <br><br>
+          那么，最“聪明”的选择应该是多少呢？
+          <br>
+          参与这个游戏并转发给你的朋友吧，让大家一起用“大数据”来找答案。
+          <br><br>
+          <strong>目标：</strong> 尽量猜中别人会怎么想，并做出最优选择。
+        </span>
+      </p>
       
       <form method="POST" action="/vote">
-        <label for="value">Your number</label>
+        <label for="value">
+          <span class="en">Your number</span>
+          <span class="zh">你的数字</span>
+        </label>
         <input id="value" name="value" type="number" min="0" max="100" required>
 
         <!-- <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>"></div> -->
 
         <div class="btn-row">
-          <button type="submit" class="btn-primary">Submit</button>
-          <button type="button" class="btn-secondary" id="shareBtn">Copy Link / Share</button>
+          <button type="submit" class="btn-primary">
+            <span class="en">Submit</span>
+            <span class="zh">提交</span>
+          </button>
+          <button type="button" class="btn-secondary" id="shareBtn">
+            <span class="en">Copy Link / Share</span>
+            <span class="zh">复制链接 / 分享</span>
+          </button>
         </div>
       </form>
 
       <% if (result && result.error) { %>
-        <div class="error"><%= result.error %></div>
+        <div class="error">
+          <!-- 如果你愿意，可以在后端也返回中文错误，这里就都能显示 -->
+          <span class="en"><%= result.error %></span>
+          <span class="zh"><%= result.errorZh || result.error %></span>
+        </div>
       <% } %>
 
       <% if (result && !result.error && result.average !== null) { %>
         <div class="result">
-          <p>You submitted: <strong><%= result.userValue %></strong></p>
-          <p>Current average: <strong><%= result.average.toFixed(2) %></strong></p>
-          <p>Half of average: <strong><%= result.target.toFixed(2) %></strong></p>
-          <p>Total votes: <%= result.totalVotes %></p>
           <p>
-            Result:
+            <span class="en">
+              You submitted: <strong><%= result.userValue %></strong>
+            </span>
+            <span class="zh">
+              你提交的数字：<strong><%= result.userValue %></strong>
+            </span>
+          </p>
+          <p>
+            <span class="en">
+              Current average: <strong><%= result.average.toFixed(2) %></strong>
+            </span>
+            <span class="zh">
+              当前所有玩家的平均值：<strong><%= result.average.toFixed(2) %></strong>
+            </span>
+          </p>
+          <p>
+            <span class="en">
+              Half of average: <strong><%= result.target.toFixed(2) %></strong>
+            </span>
+            <span class="zh">
+              平均值的一半：<strong><%= result.target.toFixed(2) %></strong>
+            </span>
+          </p>
+          <p>
+            <span class="en">
+              Total votes: <%= result.totalVotes %>
+            </span>
+            <span class="zh">
+              当前总参与人数：<%= result.totalVotes %>
+            </span>
+          </p>
+          <p>
+            <span class="en">Result: </span>
+            <span class="zh">结果：</span>
             <% if (result.isWinner) { %>
-              <span class="winner">🎉 You are currently one of the winners!</span>
+              <span class="en winner">🎉 You are currently one of the winners!</span>
+              <span class="zh winner">🎉 你目前是获胜者之一！</span>
             <% } else { %>
-              <span class="loser">❌ Not the winner yet.</span>
+              <span class="en loser">❌ Not the winner yet.</span>
+              <span class="zh loser">❌ 目前还不是获胜者。</span>
             <% } %>
           </p>
         </div>
@@ -274,17 +393,32 @@
 
     <div class="side-card">
       <div class="side-header">
-        <h2>Latest Activity</h2>
-        <span class="muted">Last 10 votes</span>
+        <h2>
+          <span class="en">Latest Activity</span>
+          <span class="zh">最新参与记录</span>
+        </h2>
+        <span class="muted">
+          <span class="en">Last 10 votes</span>
+          <span class="zh">最近 10 次提交</span>
+        </span>
       </div>
 
       <% if (recentVotes && recentVotes.length > 0) { %>
         <table>
           <thead>
             <tr>
-              <th>Value</th>
-              <th>Location</th>
-              <th>Time (UTC)</th>
+              <th>
+                <span class="en">Value</span>
+                <span class="zh">数字</span>
+              </th>
+              <th>
+                <span class="en">Location</span>
+                <span class="zh">地区</span>
+              </th>
+              <th>
+                <span class="en">Time (UTC)</span>
+                <span class="zh">时间（UTC）</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -300,25 +434,82 @@
           </tbody>
         </table>
       <% } else { %>
-        <p class="empty">No votes yet — be the first to play!</p>
+        <p class="empty">
+          <span class="en">No votes yet — be the first to play!</span>
+          <span class="zh">还没有任何提交 — 成为第一个参与的人吧！</span>
+        </p>
       <% } %>
     </div>
 
   </div>
 
   <script>
-    const shareBtn = document.getElementById('shareBtn');
-    shareBtn.addEventListener('click', async () => {
-      const url = window.location.origin + window.location.pathname;
-      if (navigator.share) {
-        await navigator.share({ title: 'Half-of-Average Game', text: 'Play this number game!', url });
-      } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(url);
-        alert('Link copied!');
-      } else {
-        prompt('Copy link:', url);
+    // 语言切换逻辑
+    const langButtons = document.querySelectorAll('[data-lang-btn]');
+    let currentLang = 'en';
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.body.classList.toggle('lang-en', lang === 'en');
+      document.body.classList.toggle('lang-zh', lang === 'zh');
+      document.documentElement.setAttribute('lang', lang === 'zh' ? 'zh-CN' : 'en');
+
+      langButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.langBtn === lang);
+      });
+
+      try {
+        localStorage.setItem('lang', lang);
+      } catch (e) {
+        // ignore if unavailable
       }
+    }
+
+    // 初始化：localStorage 优先，其次看浏览器语言
+    (function initLang() {
+      let saved = null;
+      try {
+        saved = localStorage.getItem('lang');
+      } catch (e) {}
+      if (saved === 'en' || saved === 'zh') {
+        setLanguage(saved);
+      } else {
+        const navLang = (navigator.language || '').toLowerCase();
+        if (navLang.startsWith('zh')) {
+          setLanguage('zh');
+        } else {
+          setLanguage('en');
+        }
+      }
+    })();
+
+    langButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.dataset.langBtn;
+        setLanguage(lang);
+      });
     });
+
+    // 分享按钮逻辑（保持原有功能，同时文本跟随语言）
+    const shareBtn = document.getElementById('shareBtn');
+    if (shareBtn) {
+      shareBtn.addEventListener('click', async () => {
+        const url = window.location.origin + window.location.pathname;
+        const title = currentLang === 'zh' ? '平均数的一半游戏' : 'Half-of-Average Game';
+        const text = currentLang === 'zh'
+          ? '来玩这个有趣的数字游戏，看你能否猜中大家的想法！'
+          : 'Play this number game and see if you can outthink the crowd!';
+
+        if (navigator.share) {
+          await navigator.share({ title, text, url });
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+          alert(currentLang === 'zh' ? '链接已复制！' : 'Link copied!');
+        } else {
+          prompt(currentLang === 'zh' ? '复制此链接：' : 'Copy this link:', url);
+        }
+      });
+    }
   </script>
 </body>
 </html>
