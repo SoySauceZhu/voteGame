@@ -11,11 +11,16 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+// If running behind Render/Heroku proxy, trust it so req.ip / x-forwarded-for works nicely
+app.set('trust proxy', true);
+
 app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Helper: compute game stats
+// ---------- Helpers ---------- //
+
+// Compute game stats & whether newVoteId is currently a winner
 async function computeGameStats(newVoteId) {
   const { rows } = await pool.query('SELECT id, value FROM votes');
   if (rows.length === 0) {
@@ -51,21 +56,25 @@ async function computeGameStats(newVoteId) {
   };
 }
 
-// Helper: extract IP address from request (handles reverse proxy / Render)
+// Extract client IP (handles x-forwarded-for & IPv6 prefix)
 function getClientIp(req) {
   const fwd = req.headers['x-forwarded-for'];
   if (typeof fwd === 'string' && fwd.length > 0) {
     return fwd.split(',')[0].trim();
   }
   const ip = req.socket?.remoteAddress || '';
-  // Remove IPv6 prefix like ::ffff:
   return ip.replace(/^::ffff:/, '');
 }
 
-// Helper: get location string from IP using ipapi.co
+// Geolocate IP via ipapi.co
 async function getLocationFromIp(ip) {
-  // Local dev / private IPs won't be geolocatable
-  if (!ip || ip === '::1' || ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.')) {
+  if (
+    !ip ||
+    ip === '::1' ||
+    ip.startsWith('127.') ||
+    ip.startsWith('10.') ||
+    ip.startsWith('192.168.')
+  ) {
     return 'Local network';
   }
 
@@ -89,43 +98,97 @@ async function getLocationFromIp(ip) {
   }
 }
 
-// GET / – first load, no result, no activity board
+// Verify Google reCAPTCHA v2 token
+async function verifyRecaptcha(token, remoteIp) {
+  const secret = process.env.RECAPTCHA_SECRET;
+  if (!secret) {
+    console.error('Missing RECAPTCHA_SECRET env var');
+    return false;
+  }
+
+  if (!token) {
+    return false;
+  }
+
+  const params = new URLSearchParams();
+  params.append('secret', secret);
+  params.append('response', token);
+  if (remoteIp) {
+    params.append('remoteip', remoteIp);
+  }
+
+  try {
+    const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+
+    const data = await res.json();
+    return data.success === true;
+  } catch (err) {
+    console.error('Error verifying reCAPTCHA:', err.message);
+    return false;
+  }
+}
+
+// ---------- Routes ---------- //
+
+// GET / – first load: no result, no activity board yet
 app.get('/', async (req, res) => {
   res.render('index', {
     result: null,
-    recentVotes: null, // no board yet
+    recentVotes: null,
+    recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
   });
 });
 
-// POST /vote – handle submission, show result + latest 10 votes
+// POST /vote – handle submission, verify CAPTCHA, then process vote
 app.post('/vote', async (req, res) => {
   try {
     const raw = req.body.value;
     const num = parseInt(raw, 10);
 
+    const captchaToken = req.body['g-recaptcha-response'];
+    const ip = getClientIp(req);
+
+    // 1) Verify CAPTCHA
+    const captchaOk = await verifyRecaptcha(captchaToken, ip);
+    if (!captchaOk) {
+      return res.render('index', {
+        result: {
+          error: 'CAPTCHA verification failed. Please confirm you are not a robot and try again.',
+        },
+        recentVotes: null,
+        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
+      });
+    }
+
+    // 2) Validate number
     if (Number.isNaN(num) || num < 0 || num > 1000) {
       return res.render('index', {
         result: {
           error: 'Please submit an integer between 0 and 1000.',
         },
         recentVotes: null,
+        recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
       });
     }
 
-    const ip = getClientIp(req);
+    // 3) Geolocate IP
     const location = await getLocationFromIp(ip);
 
-    // Insert vote with IP and location
+    // 4) Insert vote
     const insertRes = await pool.query(
       'INSERT INTO votes(value, ip_address, location) VALUES($1, $2, $3) RETURNING id',
       [num, ip, location]
     );
     const newVoteId = insertRes.rows[0].id;
 
-    // Compute game stats
+    // 5) Compute stats
     const stats = await computeGameStats(newVoteId);
 
-    // Fetch latest 10 votes for activity board
+    // 6) Latest 10 votes (activity board)
     const recentRes = await pool.query(
       'SELECT value, location, created_at FROM votes ORDER BY created_at DESC LIMIT 10'
     );
@@ -141,6 +204,7 @@ app.post('/vote', async (req, res) => {
         error: null,
       },
       recentVotes,
+      recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
     });
   } catch (err) {
     console.error(err);
@@ -149,6 +213,7 @@ app.post('/vote', async (req, res) => {
         error: 'Something went wrong. Please try again later.',
       },
       recentVotes: null,
+      recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
     });
   }
 });
