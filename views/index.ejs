@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Half-of-Average Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.04);
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 0.5rem;
+      font-size: 1rem;
+      box-sizing: border-box;
+      margin-bottom: 1rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+    .submit-btn {
+      background: #2563eb;
+      color: white;
+      margin-right: 0.5rem;
+    }
+    .share-btn {
+      background: #e5e7eb;
+    }
+    .result {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      background: #f3f4f6;
+    }
+    .error {
+      color: #b91c1c;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Half-of-Average Voting Game</h1>
+
+  <div class="card">
+    <p>
+      <strong>Description:</strong>
+      Please vote a number, whoever submitted the number closest to
+      <strong>half of the average</strong> wins.
+    </p>
+
+    <form method="POST" action="/vote">
+      <label for="value">Your number (0–1000):</label>
+      <input id="value" name="value" type="number" min="0" max="1000" required>
+
+      <button type="submit" class="submit-btn">Submit</button>
+      <button type="button" class="share-btn" id="shareBtn">Copy link / Share</button>
+    </form>
+
+    <% if (result && result.error) { %>
+      <div class="error"><%= result.error %></div>
+    <% } %>
+
+    <% if (result && !result.error && result.average !== null) { %>
+      <div class="result">
+        <p>You submitted: <strong><%= result.userValue %></strong></p>
+        <p>
+          Current average of all votes is:
+          <strong><%= result.average.toFixed(2) %></strong>
+        </p>
+        <p>
+          Half of the average is:
+          <strong><%= result.target.toFixed(2) %></strong>
+        </p>
+        <p>
+          Total votes: <strong><%= result.totalVotes %></strong>
+        </p>
+        <p>
+          Result:
+          <% if (result.isWinner) { %>
+            🎉 You are currently one of the winners!
+          <% } else { %>
+            ❌ You are not currently the winner.
+          <% } %>
+        </p>
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    const shareBtn = document.getElementById('shareBtn');
+    shareBtn.addEventListener('click', async () => {
+      const url = window.location.origin + window.location.pathname;
+
+      // If Web Share API is available (mobile, etc.)
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Half-of-Average Game',
+            text: 'Join this half-of-average number game!',
+            url
+          });
+        } catch (e) {
+          console.error('Share cancelled or failed', e);
+        }
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        // Fallback: copy to clipboard
+        try {
+          await navigator.clipboard.writeText(url);
+          alert('Link copied to clipboard!');
+        } catch (e) {
+          console.error(e);
+          prompt('Copy this link:', url);
+        }
+      } else {
+        // Old browsers: simple prompt
+        prompt('Copy this link:', url);
+      }
+    });
+  </script>
+</body>
+</html>
