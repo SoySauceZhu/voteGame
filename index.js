@@ -11,11 +11,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-
 const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASSWORD = process.env.ADMIN_KEY;
 
-function requireAdmin(req, res, next) {
+function requireAdminBasic(req, res, next) {
   if (!ADMIN_USER || !ADMIN_PASSWORD) {
     return res
       .status(500)
@@ -42,6 +41,7 @@ function requireAdmin(req, res, next) {
 }
 
 
+
 // If running behind Render/Heroku proxy, trust it so req.ip / x-forwarded-for works nicely
 app.set('trust proxy', true);
 
@@ -51,11 +51,47 @@ app.set('views', path.join(__dirname, 'views'));
 
 // ---------- Helpers ---------- //
 
-// Compute game stats & whether newVoteId is currently a winner
+// Return votes that are considered "active" based on constraints.
+async function getActiveVotes() {
+  // Fetch all votes
+  // We'll filter with SQL using includes/excludes constraints.
+  const query = `
+    WITH includes AS (
+      SELECT start_time, end_time
+      FROM vote_constraints
+      WHERE enabled = true AND type = 'include'
+    ),
+    excludes AS (
+      SELECT start_time, end_time
+      FROM vote_constraints
+      WHERE enabled = true AND type = 'exclude'
+    )
+    SELECT v.id, v.value
+    FROM votes v
+    WHERE
+      (
+        -- If there are no "include" constraints, all times are allowed
+        NOT EXISTS (SELECT 1 FROM includes)
+        OR EXISTS (
+          SELECT 1 FROM includes i
+          WHERE v.created_at BETWEEN i.start_time AND i.end_time
+        )
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM excludes e
+        WHERE v.created_at BETWEEN e.start_time AND e.end_time
+      );
+  `;
+
+  const { rows } = await pool.query(query);
+  return rows; // [{id, value}, ...]
+}
+
+
+
 async function computeGameStats(newVoteId) {
-  const { rows } = await pool.query(
-    'SELECT id, value FROM votes WHERE is_active = true'
-  );
+  const rows = await getActiveVotes();
+
   if (rows.length === 0) {
     return {
       average: null,
@@ -223,9 +259,37 @@ app.post('/vote', async (req, res) => {
     const stats = await computeGameStats(newVoteId);
 
     // 6) Latest 10 votes (activity board)
-    const recentRes = await pool.query(
-      'SELECT value, location, created_at FROM votes WHERE is_active = true ORDER BY created_at DESC LIMIT 10'
-    );
+    // 6) Latest 10 active votes (activity board) - use same include/exclude logic as getActiveVotes
+    const recentQuery = `
+      WITH includes AS (
+      SELECT start_time, end_time
+      FROM vote_constraints
+      WHERE enabled = true AND type = 'include'
+      ),
+      excludes AS (
+      SELECT start_time, end_time
+      FROM vote_constraints
+      WHERE enabled = true AND type = 'exclude'
+      )
+      SELECT v.value, v.location, v.created_at
+      FROM votes v
+      WHERE
+      (
+        NOT EXISTS (SELECT 1 FROM includes)
+        OR EXISTS (
+        SELECT 1 FROM includes i
+        WHERE v.created_at BETWEEN i.start_time AND i.end_time
+        )
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM excludes e
+        WHERE v.created_at BETWEEN e.start_time AND e.end_time
+      )
+      ORDER BY v.created_at DESC
+      LIMIT 10;
+    `;
+
+    const recentRes = await pool.query(recentQuery);
     const recentVotes = recentRes.rows;
 
     res.render('index', {
@@ -262,18 +326,23 @@ app.listen(port, () => {
 
 // ---------- Admin routes ---------- //
 
-// GET /admin – admin dashboard
-app.get('/admin', requireAdmin, async (req, res) => {
+
+// GET /admin – dashboard: constraints + recent votes
+app.get('/admin', requireAdminBasic, async (req, res) => {
   try {
-    // Show latest 50 votes (including inactive) so admin can manage them
-    const result = await pool.query(
-      'SELECT id, value, location, created_at, is_active FROM votes ORDER BY created_at DESC LIMIT 50'
+    const constraintsRes = await pool.query(
+      'SELECT id, start_time, end_time, type, enabled, note, created_at FROM vote_constraints ORDER BY created_at DESC'
     );
-    const votes = result.rows;
+    const constraints = constraintsRes.rows;
+
+    const votesRes = await pool.query(
+      'SELECT id, value, location, created_at FROM votes ORDER BY created_at DESC LIMIT 50'
+    );
+    const votes = votesRes.rows;
 
     res.render('admin', {
+      constraints,
       votes,
-      adminKey: req.query.key, // to keep key in form actions
     });
   } catch (err) {
     console.error(err);
@@ -281,17 +350,15 @@ app.get('/admin', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /admin/range – enable/disable votes in a time range
-app.post('/admin/range', requireAdmin, async (req, res) => {
+// POST /admin/constraints – create a new time constraint
+app.post('/admin/constraints', requireAdminBasic, async (req, res) => {
   try {
-    const { start, end, action } = req.body;
-    const adminKey = req.query.key;
+    const { start, end, type, enabled, note } = req.body;
 
-    if (!start || !end || !action) {
-      return res.status(400).send('Missing start, end, or action.');
+    if (!start || !end || !type) {
+      return res.status(400).send('Missing start, end, or type.');
     }
 
-    // Expecting ISO-like strings from datetime-local input
     const startTime = new Date(start);
     const endTime = new Date(end);
 
@@ -299,34 +366,73 @@ app.post('/admin/range', requireAdmin, async (req, res) => {
       return res.status(400).send('Invalid date format.');
     }
 
-    const enable = action === 'enable';
+    if (!['include', 'exclude'].includes(type)) {
+      return res.status(400).send('Invalid constraint type.');
+    }
+
+    const isEnabled = enabled === 'on';
 
     await pool.query(
-      'UPDATE votes SET is_active = $1 WHERE created_at BETWEEN $2 AND $3',
-      [enable, startTime.toISOString(), endTime.toISOString()]
+      `INSERT INTO vote_constraints (start_time, end_time, type, enabled, note)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [startTime.toISOString(), endTime.toISOString(), type, isEnabled, note || null]
     );
 
-    // redirect back to admin page, preserving admin key
-    res.redirect(`/admin?key=${encodeURIComponent(adminKey)}`);
+    res.redirect('/admin');
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error updating votes by time range.');
+    res.status(500).send('Error creating constraint.');
   }
 });
 
-// POST /admin/delete/:id – hard delete a vote
-app.post('/admin/delete/:id', requireAdmin, async (req, res) => {
+// POST /admin/constraints/:id/toggle – enable/disable a constraint
+app.post('/admin/constraints/:id/toggle', requireAdminBasic, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const adminKey = req.query.key;
+    if (Number.isNaN(id)) {
+      return res.status(400).send('Invalid constraint ID.');
+    }
 
+    await pool.query(
+      'UPDATE vote_constraints SET enabled = NOT enabled WHERE id = $1',
+      [id]
+    );
+
+    res.redirect('/admin');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error toggling constraint.');
+  }
+});
+
+// POST /admin/constraints/:id/delete – delete a constraint
+app.post('/admin/constraints/:id/delete', requireAdminBasic, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) {
+      return res.status(400).send('Invalid constraint ID.');
+    }
+
+    await pool.query('DELETE FROM vote_constraints WHERE id = $1', [id]);
+
+    res.redirect('/admin');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error deleting constraint.');
+  }
+});
+
+// POST /admin/votes/:id/delete – delete a vote
+app.post('/admin/votes/:id/delete', requireAdminBasic, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
     if (Number.isNaN(id)) {
       return res.status(400).send('Invalid vote ID.');
     }
 
     await pool.query('DELETE FROM votes WHERE id = $1', [id]);
 
-    res.redirect(`/admin?key=${encodeURIComponent(adminKey)}`);
+    res.redirect('/admin');
   } catch (err) {
     console.error(err);
     res.status(500).send('Error deleting vote.');

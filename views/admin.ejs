@@ -8,18 +8,12 @@
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      max-width: 900px;
+      max-width: 1000px;
       margin: 2rem auto;
       padding: 0 1rem;
     }
-    h1 {
-      font-size: 1.6rem;
-      margin-bottom: 1rem;
-    }
-    h2 {
-      font-size: 1.2rem;
-      margin-top: 1.5rem;
-    }
+    h1 { font-size: 1.6rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.2rem; margin-top: 1.5rem; }
     .card {
       border: 1px solid #ddd;
       border-radius: 12px;
@@ -32,16 +26,20 @@
       margin-bottom: 0.25rem;
       font-weight: 600;
     }
-    input, select {
+    input, select, textarea {
       padding: 0.4rem;
       font-size: 0.9rem;
       margin-bottom: 0.5rem;
+      width: 100%;
+      box-sizing: border-box;
     }
-    .field-group {
+    .row {
       display: flex;
-      gap: 1rem;
       flex-wrap: wrap;
-      margin-bottom: 0.75rem;
+      gap: 1rem;
+    }
+    .col {
+      flex: 1 1 200px;
     }
     button {
       padding: 0.4rem 0.9rem;
@@ -50,14 +48,9 @@
       border: none;
       cursor: pointer;
     }
-    .btn-primary {
-      background: #2563eb;
-      color: white;
-    }
-    .btn-danger {
-      background: #b91c1c;
-      color: white;
-    }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-secondary { background: #e5e7eb; }
+    .btn-danger { background: #b91c1c; color: white; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -69,72 +62,131 @@
       text-align: left;
       vertical-align: middle;
     }
-    th {
-      background: #f9fafb;
-      font-weight: 600;
-    }
+    th { background: #f9fafb; font-weight: 600; }
     .tag {
       display: inline-block;
       padding: 0.1rem 0.5rem;
       border-radius: 999px;
       font-size: 0.75rem;
     }
-    .tag-active {
-      background: #dcfce7;
-      color: #166534;
-    }
-    .tag-inactive {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-    .muted {
-      color: #6b7280;
-      font-size: 0.8rem;
-    }
+    .tag-include { background: #dbeafe; color: #1d4ed8; }
+    .tag-exclude { background: #fee2e2; color: #b91c1c; }
+    .tag-enabled { background: #dcfce7; color: #166534; }
+    .tag-disabled { background: #e5e7eb; color: #4b5563; }
+    .muted { color: #6b7280; font-size: 0.8rem; }
+    form.inline { display: inline; }
   </style>
 </head>
 <body>
   <h1>Admin – Half-of-Average Game</h1>
   <p class="muted">
-    Use this page to control which votes count in the game and remove bad data.
+    Manage time constraints that control which votes are used for the average, and inspect/delete votes.
   </p>
 
-  <!-- Time-range activation card -->
+  <!-- 1. Add time constraint -->
   <div class="card">
-    <h2>1. Enable / disable votes by time range</h2>
+    <h2>1. Add time range constraint</h2>
     <p class="muted">
-      Choose a time window and whether votes in that period should be active (included in average) or inactive (ignored).
+      "Include" constraints: if any are enabled, only votes inside at least one include range are considered (minus excludes).<br>
+      "Exclude" constraints: votes in these ranges are always ignored.
     </p>
 
-    <form method="POST" action="/admin/range?key=<%= encodeURIComponent(adminKey) %>">
-      <div class="field-group">
-        <div>
+    <form method="POST" action="/admin/constraints">
+      <div class="row">
+        <div class="col">
           <label for="start">Start time (UTC)</label>
-          <input type="datetime-local" id="start" name="start" required>
+          <input id="start" name="start" type="datetime-local" required>
         </div>
-        <div>
+        <div class="col">
           <label for="end">End time (UTC)</label>
-          <input type="datetime-local" id="end" name="end" required>
-        </div>
-        <div>
-          <label for="action">Action</label>
-          <select id="action" name="action" required>
-            <option value="enable">Enable votes in this range</option>
-            <option value="disable">Disable votes in this range</option>
-          </select>
+          <input id="end" name="end" type="datetime-local" required>
         </div>
       </div>
-      <button type="submit" class="btn-primary">Apply</button>
+      <div class="row">
+        <div class="col">
+          <label for="type">Type</label>
+          <select id="type" name="type" required>
+            <option value="exclude">Exclude (ignore votes in this range)</option>
+            <option value="include">Include (only count votes in this range)</option>
+          </select>
+        </div>
+        <div class="col">
+          <label for="enabled">Enabled</label>
+          <input id="enabled" name="enabled" type="checkbox" checked>
+          <span class="muted">Constraint active?</span>
+        </div>
+      </div>
+      <label for="note">Note (optional)</label>
+      <textarea id="note" name="note" rows="2" placeholder="e.g., Exclude early test data"></textarea>
+
+      <button type="submit" class="btn-primary">Add constraint</button>
     </form>
   </div>
 
-  <!-- Records table card -->
+  <!-- 2. Existing constraints -->
   <div class="card">
-    <h2>2. Latest 50 votes (manage records)</h2>
-    <p class="muted">
-      You can quickly see recent votes, check their status, and delete individual records if needed.
-    </p>
+    <h2>2. Time constraints</h2>
+    <% if (constraints && constraints.length > 0) { %>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Type</th>
+            <th>Range (UTC)</th>
+            <th>Status</th>
+            <th>Note</th>
+            <th>Created at</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% constraints.forEach(function(c) { %>
+            <tr>
+              <td><%= c.id %></td>
+              <td>
+                <% if (c.type === 'include') { %>
+                  <span class="tag tag-include">include</span>
+                <% } else { %>
+                  <span class="tag tag-exclude">exclude</span>
+                <% } %>
+              </td>
+              <td class="muted">
+                <%= c.start_time.toISOString ? c.start_time.toISOString() : c.start_time %><br>
+                → <%= c.end_time.toISOString ? c.end_time.toISOString() : c.end_time %>
+              </td>
+              <td>
+                <% if (c.enabled) { %>
+                  <span class="tag tag-enabled">enabled</span>
+                <% } else { %>
+                  <span class="tag tag-disabled">disabled</span>
+                <% } %>
+              </td>
+              <td><%= c.note || '' %></td>
+              <td class="muted">
+                <%= c.created_at.toISOString ? c.created_at.toISOString() : c.created_at %>
+              </td>
+              <td>
+                <form method="POST" action="/admin/constraints/<%= c.id %>/toggle" class="inline">
+                  <button type="submit" class="btn-secondary">
+                    <%= c.enabled ? 'Disable' : 'Enable' %>
+                  </button>
+                </form>
+                <form method="POST" action="/admin/constraints/<%= c.id %>/delete" class="inline" onsubmit="return confirm('Delete this constraint?');">
+                  <button type="submit" class="btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p class="muted">No constraints defined yet. All votes are included except those manually deleted.</p>
+    <% } %>
+  </div>
 
+  <!-- 3. Votes -->
+  <div class="card">
+    <h2>3. Latest 50 vote records</h2>
     <table>
       <thead>
         <tr>
@@ -142,7 +194,6 @@
           <th>Value</th>
           <th>Location</th>
           <th>Created at (UTC)</th>
-          <th>Status</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -157,24 +208,15 @@
                 <%= v.created_at.toISOString ? v.created_at.toISOString() : v.created_at %>
               </td>
               <td>
-                <% if (v.is_active) { %>
-                  <span class="tag tag-active">active</span>
-                <% } else { %>
-                  <span class="tag tag-inactive">inactive</span>
-                <% } %>
-              </td>
-              <td>
-                <form method="POST" action="/admin/delete/<%= v.id %>?key=<%= encodeURIComponent(adminKey) %>" style="display:inline;">
-                  <button type="submit" class="btn-danger" onclick="return confirm('Delete this vote?');">
-                    Delete
-                  </button>
+                <form method="POST" action="/admin/votes/<%= v.id %>/delete" class="inline" onsubmit="return confirm('Delete this vote?');">
+                  <button type="submit" class="btn-danger">Delete</button>
                 </form>
               </td>
             </tr>
           <% }); %>
         <% } else { %>
           <tr>
-            <td colspan="6" class="muted">No votes in database yet.</td>
+            <td colspan="5" class="muted">No votes yet.</td>
           </tr>
         <% } %>
       </tbody>
